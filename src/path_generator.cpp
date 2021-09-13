@@ -212,8 +212,8 @@ void RiserInspection::createInspectionPoints(const double phi, const float d, co
             }
 //            print_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]), nCount);
 //            print_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]), nCount);
-//            csv_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]), nCount);
-            csv_save_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]), nCount);
+//            csv_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]));
+            csv_save_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]));
             nCount++;
         }
         isVertical = !isVertical;
