@@ -1,6 +1,12 @@
 //
 // Created by regner on 06/09/2021.
 //
+#include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/Imu.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 #include <iostream>
 #include <fstream>
@@ -8,35 +14,60 @@
 #include <stdlib.h>
 #include <vector>
 
+
 #define C_PI (double)3.141592653589793
 #define DEG2RAD(DEG) ((DEG) * ((C_PI) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (C_PI))
 
 class RiserInspection {
 private:
+    /// topic subscription
+    ros::NodeHandle nh_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
+    ros::ServiceServer generate_pathway_srv;
 
-    double cart_array[6]; /// Format: [x y z dz dy dz]' [6x1]
-    double coord_array[5]; /// /// Format: [x y z dz dy dz]' [6x1]
-    double lat0 = -27.605299; /// @param lat0 Starting latitude
-    double lon0 = -48.520547; /// @param lon0 Starting longitude
-    int alt0 = 3; /// @param alt0 Starting altitude
-    int head0 = 30; /// @param head0 Starting heading
+    sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
+    sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
+            sensor_msgs::NavSatFix> RiserInspectionPolicy;
+    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
+    boost::shared_ptr<Sync> sync_;
+
+
+    /// Arrays used to store waypoints and initial values
+    float _waypointTaskDJI[8]; // Store DJI waypoint Task parameters
+    double _cart_array[6]; // [x y z dz dy dz]' [6x1]
+    double _coord_array[5]; // [x y z dz dy dz]' [6x1]
+
+    /// Initial position to waypoint creates
+    double _lat0 = -27.605299; // Starting latitude
+    double _lon0 = -48.520547; // Starting longitude
+    int _alt0 = 3; // Starting altitude
+    int _head0 = 30; // Starting heading
+    std::ofstream _saved_wp;
 public:
     RiserInspection();
 
     ~RiserInspection();
 
+    void initSubscriber(ros::NodeHandle &nh);
+
+//    void initServices(ros::NodeHandle &nh);
+
     void setInitCoord(double lon, double lat, int alt, int head);
 
-    double get_lon();
+    void setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
+                            int mission_exec_times, int yaw_mode, int trace_mode,
+                            int action_on_rc_lost, int gimbal_pitch_mode);
 
-    double get_lat();
+    void  get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
 
-    int get_alt();
-
-    int get_head();
 
     void print_wp(double *wp_array, int size, int n);
+
+    void csv_save_wp(double *wp_array, int row);
 
     /** @param cart_wp Array of 6 elements provided from cartesian [x y z dz dy dz]'
       * @return coord_wp - Lat, lon, alt, roll (north heading) and pitch (gimbal) [Nx5] */
@@ -51,6 +82,9 @@ public:
       * @param nv   Number of acquisitions levels
       * @return Format: [x y z dz dy dz]' [6x1]  */
 
-    void createInspectionPoints(double phi, float d, float da, float nh, float dv, float nv);
+    void createInspectionPoints(const double phi, const float d, const float da,
+                                const float nh, const float dv, const float nv);
 
+    bool serviceCreatePointsCB(riser_inspection::WPgenerate::Request &req,
+                               riser_inspection::WPgenerate::Response &res);
 };

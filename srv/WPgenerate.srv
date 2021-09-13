@@ -1,0 +1,4 @@
+uint8 vertical_number
+uint8 horizontal_number
+---
+bool result
