@@ -3,6 +3,8 @@
 
 RiserInspection::RiserInspection() {
     _saved_wp.open("/home/regner/Documents/wp_generator.csv");
+//    initServices(nh_);
+//    initSubscriber(nh_);
 }
 
 RiserInspection::~RiserInspection() {
@@ -29,6 +31,48 @@ void RiserInspection::setDJIwaypointTask(float velocity_range, float idle_veloci
     _waypointTaskDJI[7] = gimbal_pitch_mode;
 
 }
+
+//void RiserInspection::initServices(ros::NodeHandle &nh) {
+//    try {
+//        generate_pathway_srv = nh_.advertiseService("riser_inspection/waypoint_generator", &RiserInspection::createInspectionPoints, this);
+//        ROS_INFO("Service riser_inspection/waypoint_generator" initialize");
+//    } catch (ros::Exception &e) {
+//        ROS_ERROR("Subscribe topics exception: %s", e.what());
+//    }
+//}
+
+
+/*
+void RiserInspection::initSubscriber(ros::NodeHandle &nh) {
+    try {
+        ros::NodeHandle nh_private("~");
+
+        std::string left_topic_, right_topic_, gps_topic_, rtk_topic_, imu_topic_;
+        nh_private.param("gps_topic", gps_topic_, std::string("/dji_sdk/gps_position"));
+        nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_sdk/rtk_position"));
+        nh_private.param("imu_topic", imu_topic_, std::string("/dji_sdk/imu"));
+
+        ROS_INFO("Subscriber in Camera Right Topic: %s", right_topic_.c_str());
+        gps_position_sub_.subscribe(nh, gps_topic_, 1);
+        ROS_INFO("Subscriber in Camera GPS Topic: %s", gps_topic_.c_str());
+        rtk_position_sub_.subscribe(nh, rtk_topic_, 1);
+        ROS_INFO("Subscriber in Camera RTK Topic: %s", rtk_topic_.c_str());
+
+        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_position_sub_, rtk_position_sub_));
+        sync_->registerCallback(boost::bind(&RiserInspection::get_gps_position, this, _1, _2));
+
+        ROS_INFO("Subscribe complet");
+    } catch (ros::Exception &e) {
+        ROS_ERROR("Subscribe topics exception: %s", e.what());
+    }
+}
+
+void RiserInspection::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
+                                       const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
+    ptr_gps_position_ = msg_gps;
+    ptr_rtk_position_ = msg_rtk;
+}
+*/
 
 
 void RiserInspection::print_wp(double *wp_array, int size, int n) {
@@ -147,7 +191,6 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
             // Orientation
             float endPoint[3] = {0, 0, z};
 
-            //TODO: Verificar com o Pedro a sutração dos arrays (matrizes)
             float dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
 
             // Calculation of the absolute value of the array
@@ -179,6 +222,23 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
     return true;
 }
 
+/*
+bool RiserInspection::serviceCreatePointsCB(riser_inspection::WPgenerate::Request &req,
+                                            riser_inspection::WPgenerate::Response &res) {
+    try{
+    createInspectionPoints(req.riser_diameter, _riser_distance, req.delta_angle, req.horizontal_number,
+                           req.delta_height, req.vertical_number);
+        throw 505;
+    }catch(...){
+        std::cout <<"Fail to create inspection pathway" << std::endl;
+        res.result = false;
+        return res.result;
+    }
+    res.result = true;
+    return res.result;
+
+
+}*/
 
 
 

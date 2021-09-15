@@ -1,3 +1,6 @@
+uint8 riser_diameter # millimeter
+uint8 delta_angle
+uint8 delta_height
 uint8 vertical_number
 uint8 horizontal_number
 ---

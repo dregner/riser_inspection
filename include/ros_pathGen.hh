@@ -22,6 +22,23 @@
 
 class RiserInspection {
 private:
+    /// topic subscription
+/*    ros::NodeHandle nh_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
+    ros::ServiceServer generate_pathway_srv;
+
+    sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
+    sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;
+    /// Riser distance
+    double _riser_distance;
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
+            sensor_msgs::NavSatFix> RiserInspectionPolicy;
+    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
+    boost::shared_ptr<Sync> sync_;*/
+
+
     /// Arrays used to store waypoints and initial values
     float _waypointTaskDJI[8]; // Store DJI waypoint Task parameters
     double _cart_array[6]; // [x y z dz dy dz]' [6x1]
@@ -38,35 +55,39 @@ public:
 
     ~RiserInspection();
 
+//    void initSubscriber(ros::NodeHandle &nh);
+
+//    void initServices(ros::NodeHandle &nh);
+
     void setInitCoord(double lon, double lat, int alt, int head);
 
     void setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
                             int mission_exec_times, int yaw_mode, int trace_mode,
                             int action_on_rc_lost, int gimbal_pitch_mode);
 
-    void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
+    void  get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
 
-    /** @param wp_array Array to be ploted
-        @param size Size of array to be ploted (normaly 5 or 6)
-        @return printed waypoint at terminal*/
+
     void print_wp(double *wp_array, int size, int n);
 
     void csv_save_wp(double *wp_array, int row);
 
     /** @param cart_wp Array of 6 elements provided from cartesian [x y z dz dy dz]'
-        @return coord_wp - Lat, lon, alt, roll (north heading) and pitch (gimbal) [Nx5] */
+      * @return coord_wp - Lat, lon, alt, roll (north heading) and pitch (gimbal) [Nx5] */
 
     void pointCartToCord(double cart_wp[6], int nCount);
 
     /** @param phi  Riser diameter
-        @param d    Distance to riser wall
-        @param da   Angle delta. Degrees
-        @param nh   Number of acquisitions on same height
-        @param dv   Delta height (altitude or Z)
-        @param nv   Number of acquisitions levels
-        @return Format: [x y z dz dy dz]' [6x1]  */
+      * @param d    Distance to riser wall
+      * @param da   Angle delta. Degrees
+      * @param nh   Number of acquisitions on same height
+      * @param dv   Delta height (altitude or Z)
+      * @param nv   Number of acquisitions levels
+      * @return Format: [x y z dz dy dz]' [6x1]  */
 
     bool createInspectionPoints(const double phi, const float d, const float da,
                                 const float nh, const float dv, const float nv);
 
+//    bool serviceCreatePointsCB(riser_inspection::WPgenerate::Request &req,
+//                               riser_inspection::WPgenerate::Response &res);
 };
