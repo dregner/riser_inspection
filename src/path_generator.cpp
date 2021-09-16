@@ -9,6 +9,8 @@ RiserInspection::~RiserInspection() {
     _saved_wp.close();
 }
 
+
+
 void RiserInspection::setInitCoord(double lon, double lat, int alt, int head) {
     _lon0 = lon;
     _lat0 = lat;
@@ -180,5 +182,12 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
 }
 
 
+int main() {
+    RiserInspection riser;
+    std::cout << "Create waypoint pathway" << std::endl;
 
+    riser.setInitCoord(-48.520547, -27.605299, 10, 30);
+    riser.createInspectionPoints(0.3, 5, 15, 5, -0.3, 10);
 
+    return 0;
+}

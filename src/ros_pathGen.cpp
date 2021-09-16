@@ -1,26 +1,27 @@
-#include <path_generator.hh>
+#include <ros_pathGen.hh>
 
 
-RiserInspection::RiserInspection() {
+PathGenerate::PathGenerate(double distance) {
+    riser_distance_ = distance;
     _saved_wp.open("/home/regner/Documents/wp_generator.csv");
-//    initServices(nh_);
-//    initSubscriber(nh_);
+    initServices(nh_);
+    initSubscribers(nh_);
 }
 
-RiserInspection::~RiserInspection() {
+PathGenerate::~PathGenerate() {
     _saved_wp.close();
 }
 
-void RiserInspection::setInitCoord(double lon, double lat, int alt, int head) {
+void PathGenerate::setInitCoord(double lon, double lat, int alt, int head) {
     _lon0 = lon;
     _lat0 = lat;
     _alt0 = alt;
     _head0 = head;
 }
 
-void RiserInspection::setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
-                                         int mission_exec_times, int yaw_mode, int trace_mode,
-                                         int action_on_rc_lost, int gimbal_pitch_mode) {
+void PathGenerate::setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
+                                      int mission_exec_times, int yaw_mode, int trace_mode,
+                                      int action_on_rc_lost, int gimbal_pitch_mode) {
     _waypointTaskDJI[0] = velocity_range;
     _waypointTaskDJI[1] = idle_velocity;
     _waypointTaskDJI[2] = action_on_finish;
@@ -32,25 +33,24 @@ void RiserInspection::setDJIwaypointTask(float velocity_range, float idle_veloci
 
 }
 
-//void RiserInspection::initServices(ros::NodeHandle &nh) {
-//    try {
-//        generate_pathway_srv = nh_.advertiseService("riser_inspection/waypoint_generator", &RiserInspection::createInspectionPoints, this);
-//        ROS_INFO("Service riser_inspection/waypoint_generator" initialize");
-//    } catch (ros::Exception &e) {
-//        ROS_ERROR("Subscribe topics exception: %s", e.what());
-//    }
-//}
+void PathGenerate::initServices(ros::NodeHandle &nh) {
+    try {
+        generate_pathway_srv_ = nh.advertiseService("riser_inspection/waypoint_generator",
+                                                    &PathGenerate::PathGen_serviceCB, this);
+        ROS_INFO("Service riser_inspection/waypoint_generator initialize");
+    } catch (ros::Exception &e) {
+        ROS_ERROR("Subscribe topics exception: %s", e.what());
+    }
+}
 
 
-/*
-void RiserInspection::initSubscriber(ros::NodeHandle &nh) {
+void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
     try {
         ros::NodeHandle nh_private("~");
 
         std::string left_topic_, right_topic_, gps_topic_, rtk_topic_, imu_topic_;
         nh_private.param("gps_topic", gps_topic_, std::string("/dji_sdk/gps_position"));
         nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_sdk/rtk_position"));
-        nh_private.param("imu_topic", imu_topic_, std::string("/dji_sdk/imu"));
 
         ROS_INFO("Subscriber in Camera Right Topic: %s", right_topic_.c_str());
         gps_position_sub_.subscribe(nh, gps_topic_, 1);
@@ -58,8 +58,8 @@ void RiserInspection::initSubscriber(ros::NodeHandle &nh) {
         rtk_position_sub_.subscribe(nh, rtk_topic_, 1);
         ROS_INFO("Subscriber in Camera RTK Topic: %s", rtk_topic_.c_str());
 
-        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_position_sub_, rtk_position_sub_));
-        sync_->registerCallback(boost::bind(&RiserInspection::get_gps_position, this, _1, _2));
+        sync_.reset(new Sync(PathGeneratePolicy(10), gps_position_sub_, rtk_position_sub_));
+        sync_->registerCallback(boost::bind(&PathGenerate::get_gps_position, this, _1, _2));
 
         ROS_INFO("Subscribe complet");
     } catch (ros::Exception &e) {
@@ -67,15 +67,14 @@ void RiserInspection::initSubscriber(ros::NodeHandle &nh) {
     }
 }
 
-void RiserInspection::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
-                                       const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
+void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
+                                    const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
     ptr_gps_position_ = msg_gps;
     ptr_rtk_position_ = msg_rtk;
 }
-*/
 
 
-void RiserInspection::print_wp(double *wp_array, int size, int n) {
+void PathGenerate::print_wp(double *wp_array, int size, int n) {
     char const *cartesian[6] = {"x", "y", "z", "dz", "dy", "dz"};
     char const *gns_cord[5] = {"lat", "lon", "alt", "roll", "pitch"};
     std::cout << "Waypoint - " << n << std::endl;
@@ -85,7 +84,9 @@ void RiserInspection::print_wp(double *wp_array, int size, int n) {
     }
 }
 
-void RiserInspection::csv_save_wp(double *wp_array, int row) {
+}
+
+void PathGenerate::csv_save_wp(double *wp_array, int row) {
     for (int i = 0; i < row; i++) {
         if (_saved_wp.is_open()) {
             if (i != row - 1) { _saved_wp << wp_array[i] << ", "; }
@@ -94,7 +95,7 @@ void RiserInspection::csv_save_wp(double *wp_array, int row) {
     }
 }
 
-void RiserInspection::pointCartToCord(double cart_wp[6], int nCount) {
+void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
 
     //[6371 km]. the approximate radius of earth
     long R = 6371 * 1000;
@@ -143,8 +144,8 @@ void RiserInspection::pointCartToCord(double cart_wp[6], int nCount) {
     _coord_array[4] = pitch;
 }
 
-bool RiserInspection::createInspectionPoints(const double phi, const float d, const float da, const float nh,
-                                             const float dv, const float nv) {
+bool PathGenerate::createInspectionPoints(const double phi, const float d, const float da, const float nh,
+                                          const float dv, const float nv) {
     // Inspection radius.
     double r = d + phi / 2;
 
@@ -201,7 +202,7 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
             _cart_array[5] = dr[2] / absolute;
             _cart_array[2] = z + _alt0;
 
-            RiserInspection::pointCartToCord(_cart_array, nCount);
+            PathGenerate::pointCartToCord(_cart_array, nCount);
 
             for (int i = 0; i < (sizeof(CartP) / sizeof(CartP[0])); i++) {
                 if (i < (sizeof(_cart_array) / sizeof(_cart_array[0]))) {
@@ -222,23 +223,18 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
     return true;
 }
 
-/*
-bool RiserInspection::serviceCreatePointsCB(riser_inspection::WPgenerate::Request &req,
-                                            riser_inspection::WPgenerate::Response &res) {
-    try{
-    createInspectionPoints(req.riser_diameter, _riser_distance, req.delta_angle, req.horizontal_number,
-                           req.delta_height, req.vertical_number);
-        throw 505;
-    }catch(...){
-        std::cout <<"Fail to create inspection pathway" << std::endl;
+
+bool PathGenerate::PathGen_serviceCB(riser_inspection::WPgenerate::Request &req, riser_inspection::WPgenerate::Response &res) {
+    try {
+        createInspectionPoints(req.riser_diameter, riser_distance_, req.delta_angle, req.horizontal_number,
+                               req.delta_height, req.vertical_number);
+    } catch (ros::Exception &e) {
+        ROS_INFO("ROS error %s", e.what());
         res.result = false;
         return res.result;
     }
     res.result = true;
     return res.result;
-
-
-}*/
-
+}
 
 

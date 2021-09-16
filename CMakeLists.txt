@@ -30,18 +30,24 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+add_library(RiserPathGenLIB src/path_generator.cpp ${catkin_LIBRARIES})
 
 #set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math2")
 
 ## Declare a C++ library
-add_library(RiserInspectionLib src/path_generator.cpp ${catkin_LIBRARIES})
 ## Specify libraries to link a library or executable target against
-target_link_libraries(RiserInspectionLib ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(path_generator src/path_generator.cpp include/path_generator.hh)
+target_link_libraries(path_generator ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(path_generator src/main.cpp include/path_generator.hh)
-target_link_libraries(path_generator RiserInspectionLib ${catkin_LIBRARIES})
+add_executable(ros_pathGen src/ros_pathGen.cpp include/ros_pathGen.hh)
+target_link_libraries(ros_pathGen ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+
+
+
+
+
 
 ## Trying some action server and client to path generator
-add_executable(pathgenerator_server src/pathgenerator_server.cpp)
-target_link_libraries(pathgenerator_server ${catkin_LIBRARIES})
-add_dependencies(pathgenerator_server ${riser_inspection_EXPORTED_TARGETS})
+#add_executable(pathgenerator_server src/pathgenerator_server.cpp)
+#target_link_libraries(pathgenerator_server ${catkin_LIBRARIES})
+#add_dependencies(pathgenerator_server ${riser_inspection_EXPORTED_TARGETS})

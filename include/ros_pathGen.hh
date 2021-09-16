@@ -1,13 +1,16 @@
 //
 // Created by regner on 06/09/2021.
 //
+#include <ros/service_server.h>
+#include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Imu.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-//#include <riser_inspection/WPgenerate.h>
+#include <riser_inspection/WPgenerate.h>
+
 
 #include <iostream>
 #include <fstream>
@@ -20,23 +23,23 @@
 #define DEG2RAD(DEG) ((DEG) * ((C_PI) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (C_PI))
 
-class RiserInspection {
+class PathGenerate {
 private:
     /// topic subscription
-/*    ros::NodeHandle nh_;
+    ros::NodeHandle nh_;
     message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
     message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
-    ros::ServiceServer generate_pathway_srv;
+    ros::ServiceServer generate_pathway_srv_;
 
     sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
     sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;
     /// Riser distance
-    double _riser_distance;
+    double riser_distance_ = 7;
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
-            sensor_msgs::NavSatFix> RiserInspectionPolicy;
-    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
-    boost::shared_ptr<Sync> sync_;*/
+            sensor_msgs::NavSatFix> PathGeneratePolicy;
+    typedef message_filters::Synchronizer<PathGeneratePolicy> Sync;
+    boost::shared_ptr<Sync> sync_;
 
 
     /// Arrays used to store waypoints and initial values
@@ -51,13 +54,15 @@ private:
     int _head0 = 30; // Starting heading
     std::ofstream _saved_wp;
 public:
-    RiserInspection();
+    PathGenerate(double distance);
 
-    ~RiserInspection();
+    ~PathGenerate();
 
-//    void initSubscriber(ros::NodeHandle &nh);
+    void initSubscribers(ros::NodeHandle &nh);
 
-//    void initServices(ros::NodeHandle &nh);
+    void initServices(ros::NodeHandle &nh);
+
+    bool PathGen_serviceCB(riser_inspection::WPgenerate::Request &req, riser_inspection::WPgenerate::Response &res);
 
     void setInitCoord(double lon, double lat, int alt, int head);
 
@@ -65,7 +70,7 @@ public:
                             int mission_exec_times, int yaw_mode, int trace_mode,
                             int action_on_rc_lost, int gimbal_pitch_mode);
 
-    void  get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
+    void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
 
 
     void print_wp(double *wp_array, int size, int n);
@@ -87,7 +92,4 @@ public:
 
     bool createInspectionPoints(const double phi, const float d, const float da,
                                 const float nh, const float dv, const float nv);
-
-//    bool serviceCreatePointsCB(riser_inspection::WPgenerate::Request &req,
-//                               riser_inspection::WPgenerate::Response &res);
 };
