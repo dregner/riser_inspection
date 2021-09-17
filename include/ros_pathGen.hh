@@ -9,13 +9,15 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include <riser_inspection/WPgenerate.h>
+#include <riser_inspection/wpGenerate.h>
+#include <riser_inspection/wpFolders.h>
 
-
+#include <string>
 #include <iostream>
 #include <fstream>
-#include <math.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdlib>
+
 
 
 #define C_PI (double)3.141592653589793
@@ -29,6 +31,8 @@ private:
     message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
     message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
     ros::ServiceServer generate_pathway_srv_;
+    ros::ServiceServer wp_folders_srv;
+    std::string file_path_ = "/home/regner/Documents";
 
     sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
     sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;
@@ -63,7 +67,11 @@ public:
 
     void initServices(ros::NodeHandle &nh);
 
-    bool PathGen_serviceCB(riser_inspection::WPgenerate::Request &req, riser_inspection::WPgenerate::Response &res);
+    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
+
+    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
+
+    inline bool exists (const std::string& name);
 
     void setInitCoord(double lon, double lat, int alt, int head);
 

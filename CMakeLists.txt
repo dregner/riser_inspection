@@ -17,7 +17,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 add_action_files(DIRECTORY action
         FILES PathGen.action)
 
-add_service_files(DIRECTORY srv FILES WPgenerate.srv)
+add_service_files(DIRECTORY srv FILES wpGenerate.srv wpFolders.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 

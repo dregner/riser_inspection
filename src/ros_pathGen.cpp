@@ -1,14 +1,17 @@
 #include <ros_pathGen.hh>
-
+#include <experimental/filesystem>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 PathGenerate::PathGenerate() {
-    saved_wp_.open("/home/regner/Documents/wp_generator.csv");
+    saved_wp_ << "Latitude, Longitude, AltitudeAMSL, Speed, Picture, WP, CameraTilt, UavYaw" << "\n";
     initServices(nh_);
     initSubscribers(nh_);
 }
 
 PathGenerate::~PathGenerate() {
-    saved_wp_.close();
+
 }
 
 void PathGenerate::setInitCoord(double lon, double lat, int alt, int head) {
@@ -52,6 +55,8 @@ void PathGenerate::initServices(ros::NodeHandle &nh) {
         generate_pathway_srv_ = nh.advertiseService("riser_inspection/waypoint_generator",
                                                     &PathGenerate::PathGen_serviceCB, this);
         ROS_INFO("Service riser_inspection/waypoint_generator initialize");
+        wp_folders_srv = nh.advertiseService("riser_inspection/Folder", &PathGenerate::Folders_serviceCB, this);
+        ROS_INFO("Service riser_inspection/Folder initialized");
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
     }
@@ -84,7 +89,7 @@ void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gp
                                     const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
     ptr_gps_position_ = msg_gps;
     ptr_rtk_position_ = msg_rtk;
-    if(first_time){
+    if (first_time) {
         lat0_ = ptr_rtk_position_->latitude;
         lon0_ = ptr_rtk_position_->longitude;
         alt0_ = ptr_rtk_position_->altitude;
@@ -162,12 +167,13 @@ void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
 //
     coord_array_[3] = heading;
     coord_array_[4] = pitch;
-    ROS_INFO("Coord: %f %f %f %f %f", coord_array_[0], coord_array_[1], coord_array_[2], coord_array_[3], coord_array_[4]);
+    ROS_INFO("Coord: %f %f %f %f %f", coord_array_[0], coord_array_[1], coord_array_[2], coord_array_[3],
+             coord_array_[4]);
     PathGenerate::csv_save_wp(coord_array_, sizeof(coord_array_) / sizeof(coord_array_[0]));
 }
 
 void PathGenerate::createInspectionPoints(const double phi, const float d, const float da, const float nh,
-                                             const float dv, const float nv) {
+                                          const float dv, const float nv) {
     // Inspection radius.
     double r = d + phi / 2;
 
@@ -210,7 +216,6 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
             // Orientation
             float endPoint[3] = {0, 0, z};
 
-            //TODO: Verificar com o Pedro a sutração dos arrays (matrizes)
             double dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
 
             // Calculation of the absolute value of the array
@@ -219,26 +224,28 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
             dr[0] = dr[0] / absolute;
             dr[1] = dr[1] / absolute;
             dr[2] = dr[2] / absolute;
+            double dr2 = dr[2] / absolute;
 
             PathGenerate::rotz_cartP(180);
 
             for (int j = 0; j < sizeof(rotz_) / sizeof(rotz_[0]); j++) { // j from 0 to 2
-                double var_p = 0, var_dr =0;
+                double var_p = 0, var_dr = 0;
                 for (int k = 0; k < sizeof(rotz_[0]) / sizeof(int); k++) { // k from 0 to 2
                     var_p += (rotz_[j][k] * p[j]);
                     var_dr += (rotz_[j][k] * dr[j]);
-                    if(k == 2){
+                    if (k == 2) {
                         p[j] = var_p;
-                        dr[j] = var_dr;}
+                        dr[j] = var_dr;
+                    }
                 }
             }
 
             cart_array_[0] = p[0];
             cart_array_[1] = p[1];
-            cart_array_[2] = p[2]+alt0_;
+            cart_array_[2] = z + alt0_;
             cart_array_[3] = dr[0];
             cart_array_[4] = dr[1];
-            cart_array_[5] = dr[2];
+            cart_array_[5] = dr2;
             PathGenerate::pointCartToCord(cart_array_, nCount);
 
 //            print_wp(cart_array_, sizeof(cart_array_) / sizeof(cart_array_[0]), nCount);
@@ -250,19 +257,44 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
 }
 
 
-bool PathGenerate::PathGen_serviceCB(riser_inspection::WPgenerate::Request &req,
-                                     riser_inspection::WPgenerate::Response &res) {
+bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
+                                     riser_inspection::wpGenerate::Response &res) {
+    std::string file = "/wp_generator.csv";
+    saved_wp_.open( file_path_ + file);
     try {
-        PathGenerate::createInspectionPoints(req.riser_diameter, req.riser_distance, req.delta_angle, req.horizontal_number,
-                               req.delta_height, req.vertical_number);
+        PathGenerate::createInspectionPoints(req.riser_diameter, req.riser_distance, req.delta_angle,
+                                             req.horizontal_number,
+                                             req.delta_height, req.vertical_number);
         ROS_INFO("Waypoints created");
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         res.result = false;
+        saved_wp_.close();
         return res.result;
     }
     res.result = true;
+    saved_wp_.close();
     return res.result;
 }
 
+
+inline bool PathGenerate::exists(const std::string &name) {
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
+
+bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
+                                     riser_inspection::wpFolders::Response &res) {
+
+    if (exists(req.file_path.c_str())) {
+        ROS_INFO("Waypoint folder changed %s", req.file_path.c_str());
+        file_path_ = req.file_path;
+        res.result = true;
+        return res.result;
+    } else {
+        ROS_ERROR("Folder does not exist, file will be written in %s", file_path_.c_str());
+        res.result = false;
+        return res.result;
+    }
+}
 
