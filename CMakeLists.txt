@@ -36,10 +36,10 @@ add_library(RiserPathGenLIB src/path_generator.cpp ${catkin_LIBRARIES})
 
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
-add_executable(path_generator src/path_generator.cpp include/path_generator.hh)
+add_executable(path_generator src/path_generator.cpp )
 target_link_libraries(path_generator ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(ros_pathGen src/ros_pathGen.cpp include/ros_pathGen.hh)
+add_executable(ros_pathGen src/ros_pathGen.cpp)
 target_link_libraries(ros_pathGen ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
 

@@ -23,15 +23,16 @@
 class RiserInspection {
 private:
     /// Arrays used to store waypoints and initial values
-    float _waypointTaskDJI[8]; // Store DJI waypoint Task parameters
-    double _cart_array[6]; // [x y z dz dy dz]' [6x1]
-    double _coord_array[5]; // [x y z dz dy dz]' [6x1]
+    float waypointTaskDJI_[8]; // Store DJI waypoint Task parameters
+    double cart_array_[6]; // [x y z dz dy dz]' [6x1]
+    double coord_array_[5]; // [x y z dz dy dz]' [6x1]
 
     /// Initial position to waypoint creates
-    double _lat0 = -27.605299; // Starting latitude
-    double _lon0 = -48.520547; // Starting longitude
-    int _alt0 = 3; // Starting altitude
-    int _head0 = 30; // Starting heading
+    double lat0_ = -27.605299; // Starting latitude
+    double lon0_ = -48.520547; // Starting longitude
+    int alt0_ = 3; // Starting altitude
+    int head0_ = 30; // Starting heading
+    int rotz[3][3];
     std::ofstream _saved_wp;
 public:
     RiserInspection();
@@ -45,6 +46,8 @@ public:
                             int action_on_rc_lost, int gimbal_pitch_mode);
 
     void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
+
+    void rotz_cartP(int yaw);
 
     /** @param wp_array Array to be ploted
         @param size Size of array to be ploted (normaly 5 or 6)
@@ -66,7 +69,7 @@ public:
         @param nv   Number of acquisitions levels
         @return Format: [x y z dz dy dz]' [6x1]  */
 
-    bool createInspectionPoints(const double phi, const float d, const float da,
+    void createInspectionPoints(const double phi, const float d, const float da,
                                 const float nh, const float dv, const float nv);
 
 };

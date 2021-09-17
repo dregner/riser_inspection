@@ -12,24 +12,39 @@ RiserInspection::~RiserInspection() {
 
 
 void RiserInspection::setInitCoord(double lon, double lat, int alt, int head) {
-    _lon0 = lon;
-    _lat0 = lat;
-    _alt0 = alt;
-    _head0 = head;
+    lon0_ = lon;
+    lat0_ = lat;
+    alt0_ = alt;
+    head0_ = head;
 }
 
 void RiserInspection::setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
                                          int mission_exec_times, int yaw_mode, int trace_mode,
                                          int action_on_rc_lost, int gimbal_pitch_mode) {
-    _waypointTaskDJI[0] = velocity_range;
-    _waypointTaskDJI[1] = idle_velocity;
-    _waypointTaskDJI[2] = action_on_finish;
-    _waypointTaskDJI[3] = mission_exec_times;
-    _waypointTaskDJI[4] = yaw_mode;
-    _waypointTaskDJI[5] = trace_mode;
-    _waypointTaskDJI[6] = action_on_rc_lost;
-    _waypointTaskDJI[7] = gimbal_pitch_mode;
+    waypointTaskDJI_[0] = velocity_range;
+    waypointTaskDJI_[1] = idle_velocity;
+    waypointTaskDJI_[2] = action_on_finish;
+    waypointTaskDJI_[3] = mission_exec_times;
+    waypointTaskDJI_[4] = yaw_mode;
+    waypointTaskDJI_[5] = trace_mode;
+    waypointTaskDJI_[6] = action_on_rc_lost;
+    waypointTaskDJI_[7] = gimbal_pitch_mode;
 
+}
+
+void RiserInspection::rotz_cartP(int yaw) {
+
+    rotz[0][0] = (int) cos(DEG2RAD(yaw));
+    rotz[0][1] = (int) (sin(DEG2RAD(yaw)) * -1);
+    rotz[0][2] = 0;
+
+    rotz[1][0] = (int) sin(DEG2RAD(yaw));
+    rotz[1][1] = (int) cos(DEG2RAD(yaw));
+    rotz[1][2] = 0;
+
+    rotz[2][0] = 0;
+    rotz[2][1] = 0;
+    rotz[2][2] = 1;
 }
 
 
@@ -46,8 +61,8 @@ void RiserInspection::print_wp(double *wp_array, int size, int n) {
 void RiserInspection::csv_save_wp(double *wp_array, int row) {
     for (int i = 0; i < row; i++) {
         if (_saved_wp.is_open()) {
-            if (i != row - 1) { _saved_wp << wp_array[i] << ", "; }
-            else { _saved_wp << wp_array[i] << "\n"; }
+            if (i != row - 1) { _saved_wp << std::setprecision(10) << wp_array[i] << ", "; }
+            else { _saved_wp << std::setprecision(10) << wp_array[i] << "\n"; }
         }
     }
 }
@@ -60,26 +75,27 @@ void RiserInspection::pointCartToCord(double cart_wp[6], int nCount) {
 
 
     // Convert starting coordinate (lat lon alt) to cartesian (XYZ)
-    double x0 = R * DEG2RAD(_lon0) * cos(DEG2RAD(_lon0));
-    double y0 = R * DEG2RAD(_lat0);
-    double z0 = (_cart_array[2] * -1) + _alt0;
+    double x0 = R * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_));
+    double y0 = R * DEG2RAD(lat0_);
+    double z0 = (cart_array_[2] * -1) + alt0_;
 
 
     double firstHeading = 0;
 
-    double x = _cart_array[0] + x0;
-    double y = _cart_array[1] + y0;
-    double alt = _cart_array[2] + z0;
+    double x = cart_array_[0] + x0;
+    double y = cart_array_[1] + y0;
+    double alt = cart_array_[2] + z0;
 
 
-    double lon = RAD2DEG(x / (R * cos(DEG2RAD(_lon0))));
+    double lon = RAD2DEG(x / (R * cos(DEG2RAD(lon0_))));
     double lat = RAD2DEG(y / R);
 
-    _coord_array[0] = lat;
-    _coord_array[1] = lon;
-    _coord_array[2] = alt;
+    coord_array_[0] = lat;
+    coord_array_[1] = lon;
+    coord_array_[2] = alt;
 
-    double roll = DEG2RAD(atan2(_cart_array[4], _cart_array[3]));
+
+    double roll = RAD2DEG(atan2(cart_wp[4], cart_wp[3]));
 
     double heading = roll - 180 - 90;
 
@@ -87,9 +103,9 @@ void RiserInspection::pointCartToCord(double cart_wp[6], int nCount) {
         firstHeading = heading;
     }
 
-    double pitch = DEG2RAD(asin(_cart_array[5]));
+    double pitch = DEG2RAD(asin(cart_array_[5]));
 
-    heading = (heading - firstHeading + _head0);
+    heading = (heading - firstHeading + head0_);
 
     if (heading < -180) {
         heading = heading + 360;
@@ -97,19 +113,16 @@ void RiserInspection::pointCartToCord(double cart_wp[6], int nCount) {
         heading = heading - 360;
     }
 //
-    _coord_array[3] = heading;
-    _coord_array[4] = pitch;
+    coord_array_[3] = heading;
+    coord_array_[4] = pitch;
 }
 
-bool RiserInspection::createInspectionPoints(const double phi, const float d, const float da, const float nh,
+void RiserInspection::createInspectionPoints(const double phi, const float d, const float da, const float nh,
                                              const float dv, const float nv) {
     // Inspection radius.
     double r = d + phi / 2;
 
     int nCount = 0;
-    int n = (int) (nh * nv);
-    float CartP[6][n]; // Cartesian matrix points
-    float CordP[5][n]; // Coordenate matrix points
     float p[3] = {0, 0, 0};
 
     // Height change
@@ -141,44 +154,52 @@ bool RiserInspection::createInspectionPoints(const double phi, const float d, co
             // Lines below set position
             float x = r * cos(DEG2RAD(alpha));
             float y = r * sin(DEG2RAD(alpha));
-            _cart_array[0] = x;
-            _cart_array[1] = y;
-//            _cart_array[2] = z;
-
+            p[0] = x;
+            p[1] = y;
+            p[2] = z;
 
             // Orientation
             float endPoint[3] = {0, 0, z};
 
             //TODO: Verificar com o Pedro a sutração dos arrays (matrizes)
-            float dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
+            double dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
 
             // Calculation of the absolute value of the array
             float absolute = sqrt((dr[0] * dr[0]) + (dr[1] * dr[1]) + (dr[2] * dr[2]));
 
-            _cart_array[3] = dr[0] / absolute;
-            _cart_array[4] = dr[1] / absolute;
-            _cart_array[5] = dr[2] / absolute;
-            _cart_array[2] = z + _alt0;
+            dr[0] = dr[0] / absolute;
+            dr[1] = dr[1] / absolute;
+            dr[2] = dr[2] / absolute;
 
-            RiserInspection::pointCartToCord(_cart_array, nCount);
+            RiserInspection::rotz_cartP(180);
 
-            for (int i = 0; i < (sizeof(CartP) / sizeof(CartP[0])); i++) {
-                if (i < (sizeof(_cart_array) / sizeof(_cart_array[0]))) {
-                    CartP[i][nCount] = _cart_array[i];
-                }
-                if (i < (sizeof(_coord_array) / sizeof(_coord_array[0]))) {
-                    CordP[i][nCount] = _coord_array[i];
+            for (int j = 0; j < sizeof(rotz) / sizeof(rotz[0]); j++) { // j from 0 to 2
+                double var_p = 0, var_dr =0;
+                for (int k = 0; k < sizeof(rotz[0]) / sizeof(int); k++) { // k from 0 to 2
+                    var_p += (rotz[j][k] * p[j]);
+                    var_dr += (rotz[j][k] * dr[j]);
+                    if(k == 2){
+                        p[j] = var_p;
+                        dr[j] = var_dr;}
                 }
             }
-//            print_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]), nCount);
-//            print_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]), nCount);
-//            csv_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]));
-            csv_save_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]));
+
+            cart_array_[0] = p[0];
+            cart_array_[1] = p[1];
+            cart_array_[2] = p[2]+alt0_;
+            cart_array_[3] = dr[0];
+            cart_array_[4] = dr[1];
+            cart_array_[5] = dr[2];
+            RiserInspection::pointCartToCord(cart_array_, nCount);
+
+//            print_wp(cart_array_, sizeof(cart_array_) / sizeof(cart_array_[0]), nCount);
+//            print_wp(coord_array_, sizeof(coord_array_) / sizeof(coord_array_[0]), nCount);
+            csv_save_wp(coord_array_, sizeof(coord_array_) / sizeof(coord_array_[0]));
+//            csv_save_wp(cart_array_, sizeof(cart_array_) / sizeof(cart_array_[0]));
             nCount++;
         }
         isVertical = !isVertical;
     }
-    return true;
 }
 
 
