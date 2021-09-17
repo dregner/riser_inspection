@@ -1,36 +1,50 @@
 #include <ros_pathGen.hh>
 
 
-PathGenerate::PathGenerate(double distance) {
-    riser_distance_ = distance;
-    _saved_wp.open("/home/regner/Documents/wp_generator.csv");
+PathGenerate::PathGenerate() {
+    saved_wp_.open("/home/regner/Documents/wp_generator.csv");
     initServices(nh_);
     initSubscribers(nh_);
 }
 
 PathGenerate::~PathGenerate() {
-    _saved_wp.close();
+    saved_wp_.close();
 }
 
 void PathGenerate::setInitCoord(double lon, double lat, int alt, int head) {
-    _lon0 = lon;
-    _lat0 = lat;
-    _alt0 = alt;
-    _head0 = head;
+    lon0_ = lon;
+    lat0_ = lat;
+    alt0_ = alt;
+    head0_ = head;
 }
 
 void PathGenerate::setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
                                       int mission_exec_times, int yaw_mode, int trace_mode,
                                       int action_on_rc_lost, int gimbal_pitch_mode) {
-    _waypointTaskDJI[0] = velocity_range;
-    _waypointTaskDJI[1] = idle_velocity;
-    _waypointTaskDJI[2] = action_on_finish;
-    _waypointTaskDJI[3] = mission_exec_times;
-    _waypointTaskDJI[4] = yaw_mode;
-    _waypointTaskDJI[5] = trace_mode;
-    _waypointTaskDJI[6] = action_on_rc_lost;
-    _waypointTaskDJI[7] = gimbal_pitch_mode;
+    waypointTaskDJI_[0] = velocity_range;
+    waypointTaskDJI_[1] = idle_velocity;
+    waypointTaskDJI_[2] = action_on_finish;
+    waypointTaskDJI_[3] = mission_exec_times;
+    waypointTaskDJI_[4] = yaw_mode;
+    waypointTaskDJI_[5] = trace_mode;
+    waypointTaskDJI_[6] = action_on_rc_lost;
+    waypointTaskDJI_[7] = gimbal_pitch_mode;
 
+}
+
+void PathGenerate::rotz_cartP(int yaw) {
+
+    rotz_[0][0] = (int) cos(DEG2RAD(yaw));
+    rotz_[0][1] = (int) (sin(DEG2RAD(yaw)) * -1);
+    rotz_[0][2] = 0;
+
+    rotz_[1][0] = (int) sin(DEG2RAD(yaw));
+    rotz_[1][1] = (int) cos(DEG2RAD(yaw));
+    rotz_[1][2] = 0;
+
+    rotz_[2][0] = 0;
+    rotz_[2][1] = 0;
+    rotz_[2][2] = 1;
 }
 
 void PathGenerate::initServices(ros::NodeHandle &nh) {
@@ -49,10 +63,9 @@ void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
         ros::NodeHandle nh_private("~");
 
         std::string left_topic_, right_topic_, gps_topic_, rtk_topic_, imu_topic_;
-        nh_private.param("gps_topic", gps_topic_, std::string("/dji_sdk/gps_position"));
-        nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_sdk/rtk_position"));
+        nh_private.param("gps_topic", gps_topic_, std::string("/dji_osdk_ros/gps_position"));
+        nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_osdk_ros/rtk_position"));
 
-        ROS_INFO("Subscriber in Camera Right Topic: %s", right_topic_.c_str());
         gps_position_sub_.subscribe(nh, gps_topic_, 1);
         ROS_INFO("Subscriber in Camera GPS Topic: %s", gps_topic_.c_str());
         rtk_position_sub_.subscribe(nh, rtk_topic_, 1);
@@ -71,6 +84,13 @@ void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gp
                                     const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
     ptr_gps_position_ = msg_gps;
     ptr_rtk_position_ = msg_rtk;
+    if(first_time){
+        lat0_ = ptr_rtk_position_->latitude;
+        lon0_ = ptr_rtk_position_->longitude;
+        alt0_ = ptr_rtk_position_->altitude;
+        //TODO: which topic provides heading value?
+        first_time = false;
+    }
 }
 
 
@@ -84,13 +104,12 @@ void PathGenerate::print_wp(double *wp_array, int size, int n) {
     }
 }
 
-}
 
 void PathGenerate::csv_save_wp(double *wp_array, int row) {
     for (int i = 0; i < row; i++) {
-        if (_saved_wp.is_open()) {
-            if (i != row - 1) { _saved_wp << wp_array[i] << ", "; }
-            else { _saved_wp << wp_array[i] << "\n"; }
+        if (saved_wp_.is_open()) {
+            if (i != row - 1) { saved_wp_ << std::setprecision(10) << wp_array[i] << ", "; }
+            else { saved_wp_ << std::setprecision(10) << wp_array[i] << "\n"; }
         }
     }
 }
@@ -103,26 +122,27 @@ void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
 
 
     // Convert starting coordinate (lat lon alt) to cartesian (XYZ)
-    double x0 = R * DEG2RAD(_lon0) * cos(DEG2RAD(_lon0));
-    double y0 = R * DEG2RAD(_lat0);
-    double z0 = (_cart_array[2] * -1) + _alt0;
+    double x0 = R * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_));
+    double y0 = R * DEG2RAD(lat0_);
+    double z0 = (cart_array_[2] * -1) + alt0_;
 
 
     double firstHeading = 0;
 
-    double x = _cart_array[0] + x0;
-    double y = _cart_array[1] + y0;
-    double alt = _cart_array[2] + z0;
+    double x = cart_array_[0] + x0;
+    double y = cart_array_[1] + y0;
+    double alt = cart_array_[2] + z0;
 
 
-    double lon = RAD2DEG(x / (R * cos(DEG2RAD(_lon0))));
+    double lon = RAD2DEG(x / (R * cos(DEG2RAD(lon0_))));
     double lat = RAD2DEG(y / R);
 
-    _coord_array[0] = lat;
-    _coord_array[1] = lon;
-    _coord_array[2] = alt;
+    coord_array_[0] = lat;
+    coord_array_[1] = lon;
+    coord_array_[2] = alt;
 
-    double roll = DEG2RAD(atan2(_cart_array[4], _cart_array[3]));
+
+    double roll = RAD2DEG(atan2(cart_wp[4], cart_wp[3]));
 
     double heading = roll - 180 - 90;
 
@@ -130,9 +150,9 @@ void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
         firstHeading = heading;
     }
 
-    double pitch = DEG2RAD(asin(_cart_array[5]));
+    double pitch = DEG2RAD(asin(cart_array_[5]));
 
-    heading = (heading - firstHeading + _head0);
+    heading = (heading - firstHeading + head0_);
 
     if (heading < -180) {
         heading = heading + 360;
@@ -140,19 +160,18 @@ void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
         heading = heading - 360;
     }
 //
-    _coord_array[3] = heading;
-    _coord_array[4] = pitch;
+    coord_array_[3] = heading;
+    coord_array_[4] = pitch;
+    ROS_INFO("Coord: %f %f %f %f %f", coord_array_[0], coord_array_[1], coord_array_[2], coord_array_[3], coord_array_[4]);
+    PathGenerate::csv_save_wp(coord_array_, sizeof(coord_array_) / sizeof(coord_array_[0]));
 }
 
-bool PathGenerate::createInspectionPoints(const double phi, const float d, const float da, const float nh,
-                                          const float dv, const float nv) {
+void PathGenerate::createInspectionPoints(const double phi, const float d, const float da, const float nh,
+                                             const float dv, const float nv) {
     // Inspection radius.
     double r = d + phi / 2;
 
     int nCount = 0;
-    int n = (int) (nh * nv);
-    float CartP[6][n]; // Cartesian matrix points
-    float CordP[5][n]; // Coordenate matrix points
     float p[3] = {0, 0, 0};
 
     // Height change
@@ -184,50 +203,59 @@ bool PathGenerate::createInspectionPoints(const double phi, const float d, const
             // Lines below set position
             float x = r * cos(DEG2RAD(alpha));
             float y = r * sin(DEG2RAD(alpha));
-            _cart_array[0] = x;
-            _cart_array[1] = y;
-//            _cart_array[2] = z;
-
+            p[0] = x;
+            p[1] = y;
+            p[2] = z;
 
             // Orientation
             float endPoint[3] = {0, 0, z};
 
-            float dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
+            //TODO: Verificar com o Pedro a sutração dos arrays (matrizes)
+            double dr[3] = {endPoint[0] - x, endPoint[1] - y, endPoint[2] - z};
 
             // Calculation of the absolute value of the array
             float absolute = sqrt((dr[0] * dr[0]) + (dr[1] * dr[1]) + (dr[2] * dr[2]));
 
-            _cart_array[3] = dr[0] / absolute;
-            _cart_array[4] = dr[1] / absolute;
-            _cart_array[5] = dr[2] / absolute;
-            _cart_array[2] = z + _alt0;
+            dr[0] = dr[0] / absolute;
+            dr[1] = dr[1] / absolute;
+            dr[2] = dr[2] / absolute;
 
-            PathGenerate::pointCartToCord(_cart_array, nCount);
+            PathGenerate::rotz_cartP(180);
 
-            for (int i = 0; i < (sizeof(CartP) / sizeof(CartP[0])); i++) {
-                if (i < (sizeof(_cart_array) / sizeof(_cart_array[0]))) {
-                    CartP[i][nCount] = _cart_array[i];
-                }
-                if (i < (sizeof(_coord_array) / sizeof(_coord_array[0]))) {
-                    CordP[i][nCount] = _coord_array[i];
+            for (int j = 0; j < sizeof(rotz_) / sizeof(rotz_[0]); j++) { // j from 0 to 2
+                double var_p = 0, var_dr =0;
+                for (int k = 0; k < sizeof(rotz_[0]) / sizeof(int); k++) { // k from 0 to 2
+                    var_p += (rotz_[j][k] * p[j]);
+                    var_dr += (rotz_[j][k] * dr[j]);
+                    if(k == 2){
+                        p[j] = var_p;
+                        dr[j] = var_dr;}
                 }
             }
-//            print_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]), nCount);
-//            print_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]), nCount);
-//            csv_wp(_coord_array, sizeof(_coord_array) / sizeof(_coord_array[0]));
-            csv_save_wp(_cart_array, sizeof(_cart_array) / sizeof(_cart_array[0]));
+
+            cart_array_[0] = p[0];
+            cart_array_[1] = p[1];
+            cart_array_[2] = p[2]+alt0_;
+            cart_array_[3] = dr[0];
+            cart_array_[4] = dr[1];
+            cart_array_[5] = dr[2];
+            PathGenerate::pointCartToCord(cart_array_, nCount);
+
+//            print_wp(cart_array_, sizeof(cart_array_) / sizeof(cart_array_[0]), nCount);
+//            csv_save_wp(cart_array_, sizeof(cart_array_) / sizeof(cart_array_[0]));
             nCount++;
         }
         isVertical = !isVertical;
     }
-    return true;
 }
 
 
-bool PathGenerate::PathGen_serviceCB(riser_inspection::WPgenerate::Request &req, riser_inspection::WPgenerate::Response &res) {
+bool PathGenerate::PathGen_serviceCB(riser_inspection::WPgenerate::Request &req,
+                                     riser_inspection::WPgenerate::Response &res) {
     try {
-        createInspectionPoints(req.riser_diameter, riser_distance_, req.delta_angle, req.horizontal_number,
+        PathGenerate::createInspectionPoints(req.riser_diameter, req.riser_distance, req.delta_angle, req.horizontal_number,
                                req.delta_height, req.vertical_number);
+        ROS_INFO("Waypoints created");
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         res.result = false;

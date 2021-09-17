@@ -31,16 +31,18 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 add_library(RiserPathGenLIB src/path_generator.cpp ${catkin_LIBRARIES})
+add_library(RiserPathGenROSLIB src/ros_pathGen.cpp ${catkin_LIBRARIES})
+#add_library(RiserPathGenROSLIB src/path_generator.cpp ${catkin_LIBRARIES})
 
 #set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math2")
 
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
 add_executable(path_generator src/path_generator.cpp )
-target_link_libraries(path_generator ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+target_link_libraries(path_generator RiserPathGenLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(ros_pathGen src/ros_pathGen.cpp)
-target_link_libraries(ros_pathGen ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(ros_pathGen src/PathPlaning_node.cpp src/ros_pathGen.cpp)
+target_link_libraries(ros_pathGen RiserPathGenROSLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
 
 
