@@ -33,6 +33,7 @@ private:
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv;
     std::string file_path_ = "/home/regner/Documents";
+    std::string file_name_ ="wp_generate.csv";
 
     sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
     sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;

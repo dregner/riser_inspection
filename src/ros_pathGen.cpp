@@ -259,8 +259,8 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
 
 bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                      riser_inspection::wpGenerate::Response &res) {
-    std::string file = "/wp_generator.csv";
-    saved_wp_.open( file_path_ + file);
+    std::string slash = "/";
+    saved_wp_.open(file_path_ + slash + file_name_);
     try {
         PathGenerate::createInspectionPoints(req.riser_diameter, req.riser_distance, req.delta_angle,
                                              req.horizontal_number,
@@ -286,13 +286,17 @@ inline bool PathGenerate::exists(const std::string &name) {
 bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
                                      riser_inspection::wpFolders::Response &res) {
 
+    if (req.file_name.c_str() != NULL) {
+        ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
+        file_name_ = req.file_name;
+    }
     if (exists(req.file_path.c_str())) {
-        ROS_INFO("Waypoint folder changed %s", req.file_path.c_str());
+        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), file_name_.c_str());
         file_path_ = req.file_path;
         res.result = true;
         return res.result;
     } else {
-        ROS_ERROR("Folder does not exist, file will be written in %s", file_path_.c_str());
+        ROS_ERROR("Folder does not exist, file will be written in %s/%s", file_path_.c_str(), file_name_.c_str());
         res.result = false;
         return res.result;
     }
