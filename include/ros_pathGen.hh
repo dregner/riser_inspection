@@ -1,6 +1,8 @@
 //
 // Created by regner on 06/09/2021.
 //
+
+// ROS includes
 #include <ros/service_server.h>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
@@ -9,9 +11,13 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
+
+//Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
 #include <riser_inspection/wpFolders.h>
 
+//System includes
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -19,7 +25,7 @@
 #include <cstdlib>
 
 
-
+#define C_EARTH (double)6378137.0
 #define C_PI (double)3.141592653589793
 #define DEG2RAD(DEG) ((DEG) * ((C_PI) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (C_PI))
@@ -32,7 +38,7 @@ private:
     message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv;
-    std::string file_path_ = "/home/regner/Documents";
+    std::string file_path_ = "~/catkin_ws/src/riser_inspection";
     std::string file_name_ ="wp_generate.csv";
 
     sensor_msgs::NavSatFixConstPtr ptr_gps_position_;

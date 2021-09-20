@@ -1,6 +1,5 @@
 #include <ros_pathGen.hh>
 #include <experimental/filesystem>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
 
@@ -122,13 +121,12 @@ void PathGenerate::csv_save_wp(double *wp_array, int row) {
 void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
 
     //[6371 km]. the approximate radius of earth
-    long R = 6371 * 1000;
 
 
 
     // Convert starting coordinate (lat lon alt) to cartesian (XYZ)
-    double x0 = R * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_));
-    double y0 = R * DEG2RAD(lat0_);
+    double x0 = C_EARTH * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_));
+    double y0 = C_EARTH * DEG2RAD(lat0_);
     double z0 = (cart_array_[2] * -1) + alt0_;
 
 
@@ -139,8 +137,8 @@ void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
     double alt = cart_array_[2] + z0;
 
 
-    double lon = RAD2DEG(x / (R * cos(DEG2RAD(lon0_))));
-    double lat = RAD2DEG(y / R);
+    double lon = RAD2DEG(x / (C_EARTH * cos(DEG2RAD(lon0_))));
+    double lat = RAD2DEG(y / C_EARTH);
 
     coord_array_[0] = lat;
     coord_array_[1] = lon;
@@ -302,3 +300,13 @@ bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
     }
 }
 
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "PathGen");
+    PathGenerate path;
+    ros::spin();
+//    while(ros::ok()) {
+//        ros::spinOnce();
+//    }
+    return 0;
+}
