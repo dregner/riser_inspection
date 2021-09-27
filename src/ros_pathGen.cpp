@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+
 PathGenerate::PathGenerate() {
     saved_wp_ << "Latitude, Longitude, AltitudeAMSL, Speed, Picture, WP, CameraTilt, UavYaw" << "\n";
     initServices(nh_);
@@ -18,20 +19,6 @@ void PathGenerate::setInitCoord(double lon, double lat, int alt, int head) {
     lat0_ = lat;
     alt0_ = alt;
     head0_ = head;
-}
-
-void PathGenerate::setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
-                                      int mission_exec_times, int yaw_mode, int trace_mode,
-                                      int action_on_rc_lost, int gimbal_pitch_mode) {
-    waypointTaskDJI_[0] = velocity_range;
-    waypointTaskDJI_[1] = idle_velocity;
-    waypointTaskDJI_[2] = action_on_finish;
-    waypointTaskDJI_[3] = mission_exec_times;
-    waypointTaskDJI_[4] = yaw_mode;
-    waypointTaskDJI_[5] = trace_mode;
-    waypointTaskDJI_[6] = action_on_rc_lost;
-    waypointTaskDJI_[7] = gimbal_pitch_mode;
-
 }
 
 void PathGenerate::rotz_cartP(int yaw) {
@@ -86,12 +73,12 @@ void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
 
 void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
                                     const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
-    ptr_gps_position_ = msg_gps;
-    ptr_rtk_position_ = msg_rtk;
+    ptr_gps_position_ = *msg_gps;
+    ptr_rtk_position_ = *msg_rtk;
     if (first_time) {
-        lat0_ = ptr_rtk_position_->latitude;
-        lon0_ = ptr_rtk_position_->longitude;
-        alt0_ = ptr_rtk_position_->altitude;
+        lat0_ = ptr_rtk_position_.latitude;
+        lon0_ = ptr_rtk_position_.longitude;
+        alt0_ = ptr_rtk_position_.altitude;
         //TODO: which topic provides heading value?
         first_time = false;
     }
@@ -119,10 +106,6 @@ void PathGenerate::csv_save_wp(double *wp_array, int row) {
 }
 
 void PathGenerate::pointCartToCord(double cart_wp[6], int nCount) {
-
-    //[6371 km]. the approximate radius of earth
-
-
 
     // Convert starting coordinate (lat lon alt) to cartesian (XYZ)
     double x0 = C_EARTH * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_));
@@ -240,7 +223,7 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
 
             cart_array_[0] = p[0];
             cart_array_[1] = p[1];
-            cart_array_[2] = z + alt0_;
+            cart_array_[2] = p[2] + alt0_;
             cart_array_[3] = dr[0];
             cart_array_[4] = dr[1];
             cart_array_[5] = dr2;
@@ -254,6 +237,50 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
     }
 }
 
+std::vector<DJI::OSDK::WayPointSettings>
+PathGenerate::importDJIwaypoints(DJI::OSDK::WayPointSettings *start_data, int num_wp) {
+    std::vector<std::pair<std::string, std::vector<float>>> wp_file = PathGenerate::read_csv(
+            "~/catkin_ws/src/riser_inspection/wp_generate.csv");
+
+    std::vector<DJI::OSDK::WayPointSettings> wp_list;
+
+    // First waypoint
+    start_data->index = 0;
+    wp_list.push_back(*start_data);
+
+    // Iterative algorithm
+    for (int i = 1; i < wp_file.size(); i++) {
+        DJI::OSDK::WayPointSettings wp;
+        PathGenerate::setWaypointDefaults(&wp);
+        wp.index = i;
+        wp.latitude = wp_file.at(i).second.at(0);
+        wp.longitude = wp_file.at(i).second.at(1);
+        wp.altitude = wp_file.at(i).second.at(2);
+        wp.yaw = wp_file.at(i).second.at(7);
+        wp_list.push_back(wp);
+    }
+
+    // Come back home
+    start_data->index = num_wp;
+    wp_list.push_back(*start_data);
+
+    return wp_list;
+}
+
+void PathGenerate::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
+    wp->damping = 0;
+    wp->yaw = 0;
+    wp->gimbalPitch = 0;
+    wp->turnMode = 0;
+    wp->hasAction = 0;
+    wp->actionTimeLimit = 100;
+    wp->actionNumber = 0;
+    wp->actionRepeat = 0;
+    for (int i = 0; i < 16; ++i) {
+        wp->commandList[i] = 0;
+        wp->commandParameter[i] = 0;
+    }
+}
 
 bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                      riser_inspection::wpGenerate::Response &res) {
@@ -279,6 +306,40 @@ bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
 inline bool PathGenerate::exists(const std::string &name) {
     struct stat buffer;
     return (stat(name.c_str(), &buffer) == 0);
+}
+
+std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(std::string filename) {
+    // Reads a CSV file into a vector of <string, vector<int>> pairs where
+    // each pair represents <column name, column values>
+
+    // Create a vector of <string, int vector> pairs to store the result
+    std::vector<std::pair<std::string, std::vector<float>>> result;
+
+    // Create an input filestream
+    std::ifstream myFile(filename);
+
+    // Make sure the file is open
+    if (!myFile.is_open()) throw std::runtime_error("Could not open file");
+
+    // Helper vars
+    std::string line, colname;
+    int val;
+
+    // Read the column names
+    if (myFile.good()) {
+        // Extract the first line in the file
+        std::getline(myFile, line);
+
+        // Create a stringstream from line
+        std::stringstream ss(line);
+
+        // Extract each column name
+        while (std::getline(ss, colname, ',')) {
+
+            // Initialize and add <colname, int vector> pairs to result
+            result.push_back({colname, std::vector<float>{}});
+        }
+    }
 }
 
 bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,

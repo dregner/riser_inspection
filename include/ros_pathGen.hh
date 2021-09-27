@@ -13,6 +13,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 
+// DJI SDK includes
+#include <dji_mission_type.hpp>
+
 //Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
 #include <riser_inspection/wpFolders.h>
@@ -39,10 +42,10 @@ private:
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv;
     std::string file_path_ = "~/catkin_ws/src/riser_inspection";
-    std::string file_name_ ="wp_generate.csv";
+    std::string file_name_ = "wp_generate.csv";
 
-    sensor_msgs::NavSatFixConstPtr ptr_gps_position_;
-    sensor_msgs::NavSatFixConstPtr ptr_rtk_position_;
+    sensor_msgs::NavSatFix ptr_gps_position_;
+    sensor_msgs::NavSatFix ptr_rtk_position_;
     /// Riser distance
     double riser_distance_ = 7;
 
@@ -78,17 +81,19 @@ public:
 
     bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
-    inline bool exists (const std::string& name);
+    inline bool exists(const std::string &name);
 
     void setInitCoord(double lon, double lat, int alt, int head);
-
-    void setDJIwaypointTask(float velocity_range, float idle_velocity, int action_on_finish,
-                            int mission_exec_times, int yaw_mode, int trace_mode,
-                            int action_on_rc_lost, int gimbal_pitch_mode);
 
     void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
 
     void rotz_cartP(int yaw);
+
+    std::vector<DJI::OSDK::WayPointSettings> importDJIwaypoints(DJI::OSDK::WayPointSettings *start_data, int num_wp);
+
+    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
+
+    void setWaypointDefaults(DJI::OSDK::WayPointSettings *wp);
 
     void print_wp(double *wp_array, int size, int n);
 

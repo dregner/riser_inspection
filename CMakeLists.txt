@@ -6,11 +6,24 @@ add_compile_options(-std=c++14)
 
 
 find_package(ignition-math4)
+find_package(OpenCV REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge image_transport roscpp actionlib_msgs sensor_msgs
-        std_msgs message_generation message_filters dji_osdk_ros)
+find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge image_transport roscpp rospy actionlib_msgs sensor_msgs
+        std_msgs message_generation message_filters)
+find_package(dji_osdk_ros REQUIRED)
+include_directories(${dji_osdk_ros_INCLUDE_DIRS})
+include_directories(${dji_osdk_ros_DIRS})
+
+#if (dji_osdk_ros_FOUND)
+#    message(${dji_osdk_ros_INCLUDE_DIRS})
+#    MESSAGE(STATUS "DJIOSDK_LIB: ${DJIOSDK_LIBRARIES}")
+#    message(STATUS "CUDA Version: ${dji_osdk_ros_DIR}")
+#    message(STATUS "CUDA Libararies: ${dji_osdk_ros_LIBRARIES}")
+#endif (dji_osdk_ros_FOUND)
+
 
 find_package(Boost REQUIRED COMPONENTS system)
 
@@ -31,8 +44,6 @@ catkin_package(
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 add_library(RiserPathGenLIB src/path_generator.cpp ${catkin_LIBRARIES})
 add_library(RiserPathGenROSLIB src/ros_pathGen.cpp ${catkin_LIBRARIES})
-add_library(MissionNODELIB src/dji/mission_node.cpp ${catkin_LIBRARIES})
-#add_library(RiserPathGenROSLIB src/path_generator.cpp ${catkin_LIBRARIES})
 
 #set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math2")
 
@@ -41,11 +52,15 @@ add_library(MissionNODELIB src/dji/mission_node.cpp ${catkin_LIBRARIES})
 add_executable(path_generator src/path_generator.cpp)
 target_link_libraries(path_generator RiserPathGenLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(ros_pathGen src/ros_pathGen.cpp )
+add_executable(ros_pathGen src/ros_pathGen.cpp)
 target_link_libraries(ros_pathGen RiserPathGenROSLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(mission_node src/dji/mission_node.cpp)
-target_link_libraries(mission_node MissionNODELIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(stereo_disparity src/stereo_disparity.cpp)
+target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ignition-math4::ignition-math4 ${OpenCV_LIBS})
+#add_executable(mission_node src/dji/mission_node.cpp)
+#target_link_libraries(mission_node ${catkin_LIBRARIES} ${dji_osdk_ros_LIBRARIES} ignition-math4::ignition-math4)
+#
+
 
 
 ## Trying some action server and client to path generator

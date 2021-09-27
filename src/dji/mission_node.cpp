@@ -5,7 +5,7 @@
 #include <mission_node.hh>
 #include <dji_osdk_ros/FlightTaskControl.h>
 #include <dji_osdk_ros/ObtainControlAuthority.h>
-
+#include <dji_version.hpp>
 //using namespace DJI::OSDK;
 
 // global variables

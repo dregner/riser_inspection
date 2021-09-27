@@ -57,6 +57,7 @@
     <depend>message_generation</depend>
     <depend>message_filters</depend>
     <depend>actionlib_msgs</depend>
+    <depend>nmea_msgs</depend>
 <!--    <build_export_depend>cv_bridge</build_export_depend>-->
 <!--    <build_export_depend>image_transport</build_export_depend>-->
 <!--    <build_export_depend>roscpp</build_export_depend>-->
