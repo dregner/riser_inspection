@@ -1,4 +1,4 @@
-#include <ros_pathGen.hh>
+#include <ros_path_planning_generate.hh>
 #include <experimental/filesystem>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -38,10 +38,10 @@ void PathGenerate::rotz_cartP(int yaw) {
 
 void PathGenerate::initServices(ros::NodeHandle &nh) {
     try {
-        generate_pathway_srv_ = nh.advertiseService("riser_inspection/waypoint_generator",
-                                                    &PathGenerate::PathGen_serviceCB, this);
+//        generate_pathway_srv_ = nh.advertiseService("riser_inspection/waypoint_generator",
+//                                                    &PathGenerate::PathGen_serviceCB, this);
         ROS_INFO("Service riser_inspection/waypoint_generator initialize");
-        wp_folders_srv = nh.advertiseService("riser_inspection/Folder", &PathGenerate::Folders_serviceCB, this);
+//        wp_folders_srv = nh.advertiseService("riser_inspection/Folder", &PathGenerate::Folders_serviceCB, this);
         ROS_INFO("Service riser_inspection/Folder initialized");
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
@@ -237,53 +237,11 @@ void PathGenerate::createInspectionPoints(const double phi, const float d, const
     }
 }
 
-std::vector<DJI::OSDK::WayPointSettings>
-PathGenerate::importDJIwaypoints(DJI::OSDK::WayPointSettings *start_data, int num_wp) {
-    std::vector<std::pair<std::string, std::vector<float>>> wp_file = PathGenerate::read_csv(
-            "~/catkin_ws/src/riser_inspection/wp_generate.csv");
 
-    std::vector<DJI::OSDK::WayPointSettings> wp_list;
 
-    // First waypoint
-    start_data->index = 0;
-    wp_list.push_back(*start_data);
-
-    // Iterative algorithm
-    for (int i = 1; i < wp_file.size(); i++) {
-        DJI::OSDK::WayPointSettings wp;
-        PathGenerate::setWaypointDefaults(&wp);
-        wp.index = i;
-        wp.latitude = wp_file.at(i).second.at(0);
-        wp.longitude = wp_file.at(i).second.at(1);
-        wp.altitude = wp_file.at(i).second.at(2);
-        wp.yaw = wp_file.at(i).second.at(7);
-        wp_list.push_back(wp);
-    }
-
-    // Come back home
-    start_data->index = num_wp;
-    wp_list.push_back(*start_data);
-
-    return wp_list;
-}
-
-void PathGenerate::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
-    wp->damping = 0;
-    wp->yaw = 0;
-    wp->gimbalPitch = 0;
-    wp->turnMode = 0;
-    wp->hasAction = 0;
-    wp->actionTimeLimit = 100;
-    wp->actionNumber = 0;
-    wp->actionRepeat = 0;
-    for (int i = 0; i < 16; ++i) {
-        wp->commandList[i] = 0;
-        wp->commandParameter[i] = 0;
-    }
-}
-
-bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
-                                     riser_inspection::wpGenerate::Response &res) {
+//bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
+//                                     riser_inspection::wpGenerate::Response &res)
+                                     /*{
     std::string slash = "/";
     saved_wp_.open(file_path_ + slash + file_name_);
     try {
@@ -300,7 +258,7 @@ bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
     res.result = true;
     saved_wp_.close();
     return res.result;
-}
+}*/
 
 
 inline bool PathGenerate::exists(const std::string &name) {
@@ -342,27 +300,27 @@ std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(s
     }
 }
 
-bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
-                                     riser_inspection::wpFolders::Response &res) {
+//bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
+//                                     riser_inspection::wpFolders::Response &res) {
+//
+//    if (req.file_name.c_str() != NULL) {
+//        ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
+//        file_name_ = req.file_name;
+//    }
+//    if (exists(req.file_path.c_str())) {
+//        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), file_name_.c_str());
+//        file_path_ = req.file_path;
+//        res.result = true;
+//        return res.result;
+//    } else {
+//        ROS_ERROR("Folder does not exist, file will be written in %s/%s", file_path_.c_str(), file_name_.c_str());
+//        res.result = false;
+//        return res.result;
+//    }
+//}
 
-    if (req.file_name.c_str() != NULL) {
-        ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
-        file_name_ = req.file_name;
-    }
-    if (exists(req.file_path.c_str())) {
-        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), file_name_.c_str());
-        file_path_ = req.file_path;
-        res.result = true;
-        return res.result;
-    } else {
-        ROS_ERROR("Folder does not exist, file will be written in %s/%s", file_path_.c_str(), file_name_.c_str());
-        res.result = false;
-        return res.result;
-    }
-}
 
-
-int main(int argc, char **argv) {
+/*int main(int argc, char **argv) {
     ros::init(argc, argv, "PathGen");
     PathGenerate path;
     ros::spin();
@@ -370,4 +328,4 @@ int main(int argc, char **argv) {
 //        ros::spinOnce();
 //    }
     return 0;
-}
+}*/

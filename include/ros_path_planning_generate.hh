@@ -13,13 +13,10 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 
-// DJI SDK includes
-#include <dji_mission_type.hpp>
 
 //Riser inspection includes
-#include <riser_inspection/wpGenerate.h>
-#include <riser_inspection/wpFolders.h>
-
+//#include <riser_inspection/wpGenerate.h>
+//#include <riser_inspection/wpFolders.h>
 //System includes
 #include <string>
 #include <iostream>
@@ -77,9 +74,9 @@ public:
 
     void initServices(ros::NodeHandle &nh);
 
-    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
+//    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
-    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
+//    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
     inline bool exists(const std::string &name);
 
@@ -89,15 +86,12 @@ public:
 
     void rotz_cartP(int yaw);
 
-    std::vector<DJI::OSDK::WayPointSettings> importDJIwaypoints(DJI::OSDK::WayPointSettings *start_data, int num_wp);
-
-    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
-
-    void setWaypointDefaults(DJI::OSDK::WayPointSettings *wp);
 
     void print_wp(double *wp_array, int size, int n);
 
     void csv_save_wp(double *wp_array, int row);
+
+    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
 
     /** @param cart_wp Array of 6 elements provided from cartesian [x y z dz dy dz]'
       * @return coord_wp - Lat, lon, alt, roll (north heading) and pitch (gimbal) [Nx5] */

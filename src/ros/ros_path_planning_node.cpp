@@ -1,5 +1,5 @@
 #include <iostream>
-#include <ros_pathGen.hh>
+#include <ros_path_planning_generate.hh>
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "PathGen");

@@ -7,7 +7,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-//#include <riser_inspection/WPgenerate.h>
+//#include <riser_inspection/wpGenerate.h>
 
 #include <iostream>
 #include <fstream>

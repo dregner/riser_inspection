@@ -30,8 +30,8 @@ class ImageConverter
     message_filters::Subscriber<sensor_msgs::Image> image_left_sub_;
     message_filters::Subscriber<sensor_msgs::Image> image_right_sub_;
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image>
-            PointGreyPolicy;
-    typedef message_filters::Synchronizer<PointGreyPolicy> Sync;
+            StereoPolicy;
+    typedef message_filters::Synchronizer<StereoPolicy> Sync;
     boost::shared_ptr<Sync> sync_;
 
 public:
@@ -54,7 +54,7 @@ public:
         image_left_sub_.subscribe(nh, "/dji_sdk/stereo_vga_front_left_images", 1);
         image_right_sub_.subscribe(nh, "/dji_sdk/stereo_vga_front_right_images", 1);
 
-        sync_.reset(new Sync(PointGreyPolicy(10), image_left_sub_, image_right_sub_));
+        sync_.reset(new Sync(StereoPolicy(10), image_left_sub_, image_right_sub_));
         sync_->registerCallback(boost::bind(&ImageConverter::imageCb_disp, this, _1, _2));
     }
 
