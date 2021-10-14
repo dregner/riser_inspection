@@ -2,7 +2,6 @@
 // Created by regner on 24/09/2021.
 //
 #include <ros/ros.h>
-#include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -21,7 +20,7 @@
 
 static const std::string OPENCV_WINDOW_L = "Image L window";
 static const std::string OPENCV_WINDOW_R = "Image R window";
-static const std::string OPENCV_WINDOW_D = "Image D window";
+//static const std::string OPENCV_WINDOW_D = "Image D window";
 
 class ImageConverter
 {
@@ -40,14 +39,14 @@ public:
         initSubscriber(nh_);
         cv::namedWindow(OPENCV_WINDOW_L);
         cv::namedWindow(OPENCV_WINDOW_R);
-        cv::namedWindow(OPENCV_WINDOW_D);
+//        cv::namedWindow(OPENCV_WINDOW_D);
     }
 
     ~ImageConverter()
     {
         cv::destroyWindow(OPENCV_WINDOW_L);
         cv::destroyWindow(OPENCV_WINDOW_R);
-        cv::destroyWindow(OPENCV_WINDOW_D);
+//        cv::destroyWindow(OPENCV_WINDOW_D);
     }
     void initSubscriber(ros::NodeHandle &nh) {
         ros::NodeHandle nh_private("~");
@@ -58,13 +57,13 @@ public:
         sync_->registerCallback(boost::bind(&ImageConverter::imageCb_disp, this, _1, _2));
     }
 
-    void imageCb(const sensor_msgs::ImageConstPtr &imgL, const sensor_msgs::ImageConstPtr &imgR)
+    void imageCb_show(const sensor_msgs::ImageConstPtr &imgL, const sensor_msgs::ImageConstPtr &imgR)
     {
         cv_bridge::CvImagePtr cv_ptr_L, cv_ptr_R;
         try
         {
-            cv_ptr_L = cv_bridge::toCvCopy(imgL, sensor_msgs::image_encodings::BGR8);
-            cv_ptr_R = cv_bridge::toCvCopy(imgR, sensor_msgs::image_encodings::BGR8);
+            cv_ptr_L = cv_bridge::toCvCopy(imgL, sensor_msgs::image_encodings::MONO8);
+            cv_ptr_R = cv_bridge::toCvCopy(imgR, sensor_msgs::image_encodings::MONO8);
         }
         catch (cv_bridge::Exception& e)
         {
@@ -82,17 +81,18 @@ public:
         cv_bridge::CvImagePtr cv_ptr_L, cv_ptr_R;
         try
         {
-            cv_ptr_L = cv_bridge::toCvCopy(imgL, sensor_msgs::image_encodings::BGR8);
-            cv_ptr_R = cv_bridge::toCvCopy(imgR, sensor_msgs::image_encodings::BGR8);
+            cv_ptr_L = cv_bridge::toCvCopy(imgL, sensor_msgs::image_encodings::MONO8);
+            cv_ptr_R = cv_bridge::toCvCopy(imgR, sensor_msgs::image_encodings::MONO8);
         }
         catch (cv_bridge::Exception& e)
         {
             ROS_ERROR("cv_bridge exception: %s", e.what());
             return;
         }
-        cv::Mat imgL_grey, imgR_grey;
-        cv::cvtColor(cv_ptr_L->image, imgL_grey, cv::COLOR_BGR2GRAY);
-        cv::cvtColor(cv_ptr_R->image, imgR_grey, cv::COLOR_BGR2GRAY);
+        cv::Mat imgL_grey = cv_ptr_L->image;
+        cv::Mat imgR_grey = cv_ptr_R->image;
+//        cv::cvtColor(cv_ptr_L->image, imgL_grey, cv::GRAY);
+//        cv::cvtColor(cv_ptr_R->image, imgR_grey, cv::COLOR_BGR2GRAY);
 
         // Setting parameters for StereoSGBM algorithm
         int minDisparity = 0.1;
@@ -110,7 +110,7 @@ public:
 
         // Calculating disparith using the StereoSGBM algorithm
         cv::Mat disp, disparity;
-        stereo->compute(cv_ptr_L->image, cv_ptr_R->image, disp);
+//        stereo->compute(cv_ptr_L->image, cv_ptr_R->image, disp);
         // Calculating disparith using the StereoBM algorithm
         stereo->compute(imgL_grey,imgR_grey,disp);
 
@@ -133,8 +133,8 @@ public:
         cv::imshow("OPENCV_WINDOW_D", disp);
 
         // Update GUI Window
-        cv::imshow(OPENCV_WINDOW_L, cv_ptr_L->image);
-        cv::imshow(OPENCV_WINDOW_R, cv_ptr_R->image);
+        cv::imshow(OPENCV_WINDOW_L, imgL_grey);
+        cv::imshow(OPENCV_WINDOW_R, imgR_grey);
         cv::waitKey(3);
     }
 

@@ -2,11 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 project(riser_inspection)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++14)
+#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_STANDARD 14)
+
 
 
 find_package(ignition-math4)
-find_package(OpenCV REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -17,12 +18,22 @@ find_package(dji_sdk REQUIRED)
 include_directories(${dji_sdk_INCLUDE_DIRS})
 include_directories(${dji_sdk_DIRS})
 
-#if (dji_osdk_ros_FOUND)
-#    message(${dji_osdk_ros_INCLUDE_DIRS})
-#    MESSAGE(STATUS "DJIOSDK_LIB: ${DJIOSDK_LIBRARIES}")
-#    message(STATUS "CUDA Version: ${dji_osdk_ros_DIR}")
-#    message(STATUS "CUDA Libararies: ${dji_osdk_ros_LIBRARIES}")
-#endif (dji_osdk_ros_FOUND)
+find_package(OpenCV 3 REQUIRED)
+if (OpenCV_FOUND)
+    message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system")
+    message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
+    include_directories( ${OpenCV_INCLUDE_DIRS})
+endif()
+
+
+find_package(CUDA QUIET)
+if(CUDA_FOUND)
+    message(STATUS "Found ${CUDA_VERSION} CUDA installed in the system, will use it for depth perception sample")
+    message(STATUS " - Includes: ${CUDA_INCLUDE_DIRS}")
+    add_definitions(-DUSE_GPU)
+elseif()
+    message(STATUS "Did not find CUDA in the system")
+endif()
 
 
 find_package(Boost REQUIRED COMPONENTS system)
@@ -56,7 +67,10 @@ target_link_libraries(path_generator RiserPathGenLIB ${catkin_LIBRARIES} ignitio
 #target_link_libraries(ros_pathGen RiserPathGenROSLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
-target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ignition-math4::ignition-math4 ${OpenCV_LIBS})
+target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(stereo_calib src/stereo/stereo_calib.cpp)
+target_link_libraries(stereo_calib ${OpenCV_LIBS})
 
 add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp )
 target_link_libraries(riser_inspection_node RiserPathGenROSLIB ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)

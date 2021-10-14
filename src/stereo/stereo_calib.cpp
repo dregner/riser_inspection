@@ -6,9 +6,9 @@
 #include <iostream>
 
 // Defining the dimensions of checkerboard
-int CHECKERBOARD[2]{6,9};
+int CHECKERBOARD[2]{13,18}; /// Check board dimension starting from 0
 
-int main()
+int main(int argv, char** argc)
 {
     // Creating vector to store vectors of 3D points for each checkerboard image
     std::vector<std::vector<cv::Point3f> > objpoints;
@@ -27,8 +27,8 @@ int main()
     // Extracting path of individual image stored in a given directory
     std::vector<cv::String> imagesL, imagesR;
     // Path of the folder containing checkerboard images
-    std::string pathL = "./data/stereoL/*.png";
-    std::string pathR = "./data/stereoR/*.png";
+    std::string pathL = "/home/regner/Documents/stereo_VGA_calib/1_5m_filtered/left/*.png";
+    std::string pathR = "/home/regner/Documents/stereo_VGA_calib/1_5m_filtered/right/*.png";
 
     cv::glob(pathL, imagesL);
     cv::glob(pathR, imagesR);
@@ -41,20 +41,20 @@ int main()
     // Looping over all the images in the directory
     for(int i{0}; i<imagesL.size(); i++)
     {
+
         frameL = cv::imread(imagesL[i]);
         cv::cvtColor(frameL,grayL,cv::COLOR_BGR2GRAY);
-
         frameR = cv::imread(imagesR[i]);
         cv::cvtColor(frameR,grayR,cv::COLOR_BGR2GRAY);
 
         // Finding checker board corners
         // If desired number of corners are found in the image then success = true
+
         successL = cv::findChessboardCorners(
                 grayL,
                 cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),
                 corner_ptsL);
         // cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_FAST_CHECK | cv::CALIB_CB_NORMALIZE_IMAGE);
-
         successR = cv::findChessboardCorners(
                 grayR,
                 cv::Size(CHECKERBOARD[0],CHECKERBOARD[1]),
@@ -201,7 +201,7 @@ int main()
                                 Right_Stereo_Map1,
                                 Right_Stereo_Map2);
 
-    cv::FileStorage cv_file = cv::FileStorage("data/params_cpp.xml", cv::FileStorage::WRITE);
+    cv::FileStorage cv_file = cv::FileStorage("/home/regner/Documents/stereo_VGA_calib/1_5m_filtered/params_cpp.xml", cv::FileStorage::WRITE);
     cv_file.write("Left_Stereo_Map_x",Left_Stereo_Map1);
     cv_file.write("Left_Stereo_Map_y",Left_Stereo_Map2);
     cv_file.write("Right_Stereo_Map_x",Right_Stereo_Map1);
