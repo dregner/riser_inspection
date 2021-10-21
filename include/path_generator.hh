@@ -21,7 +21,7 @@
 class RiserInspection {
 private:
     /// file name to store WP
-    std::ofstream _saved_wp;
+    std::ofstream saved_wp_;
     /// Initialize parameters
     int altitudeCount_ = 4; // number of horizontal path
     float deltaAltitude_ = 0.3; // 80% image overlap (CAMERA PARAMETER) TODO: Find a way to bring it from image.
@@ -32,9 +32,9 @@ private:
     int start_angle_ = (-deltaAngle_ * angleCount_ / 2) + deltaAngle_ / 2;
 
     /// Arrays to store WP creation
-    double polar_array_[2]{}; // Polar array [r deg]
-    double xy_array_[2]{};    // Cart array [x y]
-    double waypoint_[4]{}; // Waypoint array [lat lon alt heading gimbal_pitch]'
+    double polar_array_[2]{0,0}; // Polar array [r deg]
+    double xy_array_[2]{0,0};    // Cart array [x y]
+    double waypoint_[4]{0,0,0,0}; // Waypoint array [lat lon alt heading]
 
     /// Initial position to waypoint creates
     // TODO: Must come as initialize parameters
@@ -63,5 +63,7 @@ public:
     void createInspectionPoints();
 
     void csv_save_wp(double *wp_array, int row);
+
+    void csv_save_ugcs(double *wp_array, int row, int wp_number);
 
 };
