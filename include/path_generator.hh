@@ -14,14 +14,18 @@
 #include <cmath>
 #include <cstdlib>
 #include <vector>
-
+#include <path_generator.hh>
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
 
 class RiserInspection {
 private:
+
+
     /// file name to store WP
     std::ofstream saved_wp_;
+    std::string file_path_ = "~/catkin_ws/src/riser_inspection";
+    std::string file_name_ = "wp_generate.csv";
     /// Initialize parameters
     int altitudeCount_ = 4; // number of horizontal path
     float deltaAltitude_ = 0.3; // 80% image overlap (CAMERA PARAMETER) TODO: Find a way to bring it from image.
@@ -32,9 +36,9 @@ private:
     int start_angle_ = (-deltaAngle_ * angleCount_ / 2) + deltaAngle_ / 2;
 
     /// Arrays to store WP creation
-    double polar_array_[2]{0,0}; // Polar array [r deg]
-    double xy_array_[2]{0,0};    // Cart array [x y]
-    double waypoint_[4]{0,0,0,0}; // Waypoint array [lat lon alt heading]
+    double polar_array_[2]{0, 0}; // Polar array [r deg]
+    double xy_array_[2]{0, 0};    // Cart array [x y]
+    double waypoint_[4]{0, 0, 0, 0}; // Waypoint array [lat lon alt heading]
 
     /// Initial position to waypoint creates
     // TODO: Must come as initialize parameters
@@ -45,6 +49,7 @@ private:
 
     /// Internal parameters
     int Y_North_ZeroDegrees_ = -90;
+    bool firstTime;
 public:
     RiserInspection();
 
@@ -67,5 +72,19 @@ public:
     void csv_save_wp(double *wp_array, int row);
 
     void csv_save_ugcs(double *wp_array, int row, int wp_number);
+
+    void csv_save_ugcs_EMU(double *wp_array, int row, int wp_number);
+
+    void openFile();
+
+    void closeFile();
+
+    void changeFileFolder(std::string file_name);
+
+    void changeFileName(std::string file_name);
+
+    std::string getFileName();
+    std::string getFileFolder();
+
 
 };

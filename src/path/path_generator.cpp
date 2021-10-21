@@ -2,14 +2,14 @@
 
 
 RiserInspection::RiserInspection() {
-    saved_wp_.open("/home/vant3d/Documents/wp_generator.csv");
-    saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl;
-//    saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
+    firstTime = true;
+
+
 
 }
 
 RiserInspection::~RiserInspection() {
-    saved_wp_.close();
+
 }
 
 void RiserInspection::setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT) {
@@ -54,17 +54,18 @@ void RiserInspection::cart2gcs(double altitude) {
     waypoint_[2] = altitude;
 }
 
-//void RiserInspection::csv_save_ugcs(double *wp_array, int row, int wp_number) {
-//
-//    if (saved_wp_.is_open()) {
-//        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ", ";
-//        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE, " << std::setprecision(2)
-//                  << wp_number << "," << 0 << ",";
-//        saved_wp_ << std::setprecision(10) << wp_array[3] << "," << 2 << "\n";
-//    }
-//}
 void RiserInspection::csv_save_ugcs(double *wp_array, int row, int wp_number) {
+    if(firstTime == true){  saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl; firstTime = false;}
 
+    if (saved_wp_.is_open()) {
+        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ", ";
+        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE, " << std::setprecision(2)
+                  << wp_number << "," << 0 << ",";
+        saved_wp_ << std::setprecision(10) << wp_array[3] << "," << 2 << "\n";
+    }
+}
+void RiserInspection::csv_save_ugcs_EMU(double *wp_array, int row, int wp_number) {
+    if(firstTime == true){ saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl; firstTime = false;}
     if (saved_wp_.is_open()) {
         saved_wp_ << std::setprecision(11) << wp_array[0] << "," << std::setprecision(11) << wp_array[1] << ", ";
         saved_wp_ << std::setprecision(11) << wp_array[2] << "," << 1 <<','<< wp_number << ",";
@@ -88,6 +89,7 @@ void RiserInspection::findCenterHeading(int deltaAngle, int angleCount) {
 }
 
 void RiserInspection::createInspectionPoints() {
+    openFile();
     findCenterHeading(deltaAngle_, angleCount_);
     int count_wp = 1;
     float initial = alt0_; // initiate altitude value
@@ -114,6 +116,30 @@ void RiserInspection::createInspectionPoints() {
             count_wp += 1;
         }
     }
+}
+
+void RiserInspection::openFile() {
+    std::string slash = "/";
+    saved_wp_.open(file_path_ + slash + file_name_);
+}
+
+void RiserInspection::closeFile() {
+    saved_wp_.close();
+}
+void RiserInspection::changeFileFolder(std::string file_name) {
+    file_path_ = file_name.c_str();
+}
+
+void RiserInspection::changeFileName(std::string file_name) {
+    file_name_ = file_name.c_str();
+}
+
+std::string RiserInspection::getFileFolder() {
+    return file_path_.c_str();
+}
+
+std::string RiserInspection::getFileName() {
+    return file_name_.c_str();
 }
 
 int main() {
