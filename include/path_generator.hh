@@ -50,7 +50,9 @@ public:
 
     ~RiserInspection();
 
-    void setInitCoord(double dist, float d_cyl, double lon, double lat, float alt, float head);
+    void setInitCoord(double dist, float d_cyl, double lat, double lon, float alt, float head);
+
+    void setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT);
 
     void inspectionAngletoHeading(float polar_angle);
 

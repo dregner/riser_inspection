@@ -2,8 +2,9 @@
 
 
 RiserInspection::RiserInspection() {
-    saved_wp_.open("/home/regner/Documents/wp_generator.csv");
-    saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
+    saved_wp_.open("/home/vant3d/Documents/wp_generator.csv");
+    saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl;
+//    saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
 
 }
 
@@ -11,7 +12,14 @@ RiserInspection::~RiserInspection() {
     saved_wp_.close();
 }
 
-void RiserInspection::setInitCoord(double dist, float d_cyl, double lon, double lat, float alt, float head) {
+void RiserInspection::setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT) {
+    angleCount_ = n_h;
+    altitudeCount_ = n_v;
+    deltaAngle_ = deltaDEG;
+    deltaAltitude_ = deltaALT;
+}
+
+void RiserInspection::setInitCoord(double dist, float d_cyl, double lat, double lon, float alt, float head) {
     d_cyl_ = d_cyl;
     dist_ = dist;
     lon0_ = lon;
@@ -46,12 +54,21 @@ void RiserInspection::cart2gcs(double altitude) {
     waypoint_[2] = altitude;
 }
 
+//void RiserInspection::csv_save_ugcs(double *wp_array, int row, int wp_number) {
+//
+//    if (saved_wp_.is_open()) {
+//        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ", ";
+//        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE, " << std::setprecision(2)
+//                  << wp_number << "," << 0 << ",";
+//        saved_wp_ << std::setprecision(10) << wp_array[3] << "," << 2 << "\n";
+//    }
+//}
 void RiserInspection::csv_save_ugcs(double *wp_array, int row, int wp_number) {
 
     if (saved_wp_.is_open()) {
-        saved_wp_ << std::setprecision(10) << wp_array[0] << ", "<< std::setprecision(10) << wp_array[1] << ", ";
-        saved_wp_ << std::setprecision(10) << wp_array[2] << ", "<< 1 << ", TRUE, " << wp_number  << ", " << 0 << ", ";
-        saved_wp_ << std::setprecision(10) << wp_array[3] << ", " << 2 << "\n";
+        saved_wp_ << std::setprecision(11) << wp_array[0] << "," << std::setprecision(11) << wp_array[1] << ", ";
+        saved_wp_ << std::setprecision(11) << wp_array[2] << "," << 1 <<','<< wp_number << ",";
+        saved_wp_ << std::setprecision(5) << wp_array[3] << "," << 2 << "\n";
     }
 }
 
@@ -76,19 +93,19 @@ void RiserInspection::createInspectionPoints() {
     float initial = alt0_; // initiate altitude value
     float vertical; // Set if will move drone down or up INITIALLY DOWN.
     for (int i = 0; i < angleCount_; i++) {
-        if (i % 2 == 1) { vertical = -1; } else { vertical = 1; }
+        if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
         for (int k = 0; k < altitudeCount_; k++) {
             /// Set altitude of this waypoint
             float altitude = initial + (float) k * vertical * deltaAltitude_;
             /// Set Polar values
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
-            polar_array_[1] += head0_ - 90; // Compense heading orientation and -90 to transform N to 0 deg
+            inspectionAngletoHeading((float) polar_array_[1]);
+            polar_array_[1] -= + head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
             /// Convert Polar to Cartesian
             polar2cart(polar_array_[0], polar_array_[1]);
             /// Introduce values to waypoint array to be printed
             cart2gcs(altitude);
-            inspectionAngletoHeading((float) polar_array_[1]);
             /// Export to CSV file
 //            csv_save_wp(waypoint_, sizeof(waypoint_) / sizeof(waypoint_[0]));
             csv_save_ugcs(waypoint_, sizeof(waypoint_) / sizeof(waypoint_[0]), count_wp);
@@ -103,7 +120,8 @@ int main() {
     RiserInspection riser;
     std::cout << "Creating waypoint pathway" << std::endl;
 
-    riser.setInitCoord(5, 0.3, -48.520547, -27.605299, 10, 30);
+    riser.setInitCoord(5, 0.3, 46.775450, 8.345125, 1839.8 + 10, 74.2);
+    riser.setInspectionParam(5, 4, 15, -0.3);
     riser.createInspectionPoints();
     std::cout << "Finished" << std::endl;
 

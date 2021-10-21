@@ -75,9 +75,6 @@ target_link_libraries(stereo_calib ${OpenCV_LIBS})
 add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp )
 target_link_libraries(riser_inspection_node RiserPathGenROSLIB ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-
-
-
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)
 #target_link_libraries(pathgenerator_server ${catkin_LIBRARIES})
