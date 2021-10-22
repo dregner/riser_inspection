@@ -1,7 +1,16 @@
-//
-// Created by regner on 06/09/2021.
-//
-
+/** @file path_generator.h
+ *  @author Daniel Regner
+ *  @version 2.0
+ *  @date Oct, 2021
+ *
+ *  @brief
+ *  An class used to generate and export to CSV waypoints based
+ *  on semi-circular trajectory for photogrammetry inspection
+ *
+ *  @copyright 2021 VANT3D. All rights reserved.
+ */
+#ifndef RISER_INSPECTION_H
+#define RISER_INSPECTION_H
 // ROS includes
 #include <ros/service_server.h>
 #include <ros/ros.h>
@@ -19,17 +28,16 @@
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/MissionWpUpload.h>
 #include <dji_sdk/MissionWpAction.h>
+#include <djiosdk/dji_vehicle.hpp>
+
 
 //Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
 #include <riser_inspection/wpFolders.h>
+#include <riser_inspection/wpStartMission.h>
 
 //System includes
 #include <string>
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <cstdlib>
 #include <experimental/filesystem>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -57,20 +65,21 @@ typedef struct ServiceAck
 
 class RiserInspection {
 private:
-    /**
-     * ROS STUFF
-    * */
     ros::NodeHandle nh_;
+    /// Filter to acquire same time GPS and RTK
     message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
     message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
+    /// Foler and File services
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv;
-
+    /// DJI Services
     ros::ServiceClient     drone_activation_service;
     ros::ServiceClient     sdk_ctrl_authority_service;
     ros::ServiceClient     drone_task_service;
+    ros::ServiceClient     waypoint_action_service;
+    ros::ServiceClient     waypoint_upload_service;
 
-
+    /// Messages from GPS and RTK
     sensor_msgs::NavSatFix ptr_gps_position_;
     sensor_msgs::NavSatFix ptr_rtk_position_;
 
@@ -98,14 +107,6 @@ public:
 
     ~RiserInspection();
 
-    bool askControlAuthority();
-
-    ServiceAck activate();
-
-    ServiceAck obtainCtrlAuthority();
-
-    ServiceAck takeoff();
-
     void initSubscribers(ros::NodeHandle &nh);
 
     void initServices(ros::NodeHandle &nh);
@@ -114,10 +115,36 @@ public:
 
     bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
-    inline bool exists(const std::string &name);
+    bool StartMission_serviceCB(riser_inspection::wpStartMission::Request &req, riser_inspection::wpStartMission::Response &res);
 
     void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
 
     std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
 
+
+    ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
+                             DJI::OSDK::MISSION_ACTION   action);
+
+    ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask& waypointTask);
+
+    ServiceAck activate();
+
+    ServiceAck obtainCtrlAuthority();
+
+    ServiceAck takeoff();
+
+    bool askControlAuthority();
+
+    void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings>& wp_list,
+                         int                                       responseTimeout,
+                         dji_sdk::MissionWaypointTask&             waypointTask);
+
+    bool runWaypointMission(uint8_t numWaypoints, int responseTimeout);
+
+    void setWaypointDefaults(DJI::OSDK::WayPointSettings* wp);
+
+    void setWaypointInitDefaults(dji_sdk::MissionWaypointTask& waypointTask);
+
 };
+
+#endif // RISER_INSPECTION_H

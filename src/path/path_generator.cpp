@@ -5,7 +5,6 @@ PathGenerate::PathGenerate() {
     firstTime = true;
 
 
-
 }
 
 PathGenerate::~PathGenerate() {
@@ -55,7 +54,10 @@ void PathGenerate::cart2gcs(double altitude) {
 }
 
 void PathGenerate::csv_save_ugcs(double *wp_array, int row, int wp_number) {
-    if(firstTime == true){  saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl; firstTime = false;}
+    if (firstTime == true) {
+        saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
+        firstTime = false;
+    }
 
     if (saved_wp_.is_open()) {
         saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ", ";
@@ -66,10 +68,13 @@ void PathGenerate::csv_save_ugcs(double *wp_array, int row, int wp_number) {
 }
 
 void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int row, int wp_number) {
-    if(firstTime == true){ saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl; firstTime = false;}
+    if (firstTime == true) {
+        saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl;
+        firstTime = false;
+    }
     if (saved_wp_.is_open()) {
         saved_wp_ << std::setprecision(11) << wp_array[0] << "," << std::setprecision(11) << wp_array[1] << ", ";
-        saved_wp_ << std::setprecision(11) << wp_array[2] << "," << 1 <<','<< wp_number << ",";
+        saved_wp_ << std::setprecision(11) << wp_array[2] << "," << 1 << ',' << wp_number << ",";
         saved_wp_ << std::setprecision(5) << wp_array[3] << "," << 2 << "\n";
     }
 }
@@ -104,7 +109,7 @@ void PathGenerate::createInspectionPoints() {
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
             inspectionAngletoHeading((float) polar_array_[1]);
-            polar_array_[1] -= + head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
+            polar_array_[1] -= +head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
             /// Convert Polar to Cartesian
             polar2cart(polar_array_[0], polar_array_[1]);
             /// Introduce values to waypoint array to be printed
@@ -128,20 +133,27 @@ void PathGenerate::closeFile() {
     saved_wp_.close();
 }
 
+inline bool PathGenerate::exists(const std::string &name) {
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
 
 void PathGenerate::setFileName(std::string file_name) {
     file_name_ = file_name.c_str();
 }
-char*PathGenerate::getFileName() {
+
+char *PathGenerate::getFileName() {
+
     return const_cast<char *>(file_name_.c_str());
 }
 
-char* PathGenerate::getFileFolder() {
+char *PathGenerate::getFileFolder() {
     return const_cast<char *>(file_path_.c_str());
 }
 
 void PathGenerate::setFileFolder(std::string file_name) {
-    file_path_ = file_name.c_str();
+    if (exists(file_name.c_str())) { file_path_ = file_name.c_str(); }
+    else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 
 

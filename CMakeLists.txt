@@ -41,7 +41,7 @@ endif()
 ################################################
 
 
-add_service_files(FILES wpGenerate.srv wpFolders.srv)
+add_service_files(FILES wpGenerate.srv wpFolders.srv wpStartMission.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 

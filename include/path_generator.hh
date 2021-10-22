@@ -1,13 +1,26 @@
-//
-// Created by regner on 06/09/2021.
-//
+/** @file path_generator.h
+ *  @author Daniel Regner
+ *  @version 2.0
+ *  @date Oct, 2021
+ *
+ *  @brief
+ *  An class used to generate and export to CSV waypoints based
+ *  on semi-circular trajectory for photogrammetry inspection
+ *
+ *  @copyright 2021 VANT3D. All rights reserved.
+ */
 
+#ifndef PATH_GEN_H
+#define PATH_GEN_H
+
+// System includes
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <cstdlib>
 #include <vector>
 #include <iomanip>
+#include <sys/stat.h>
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
@@ -81,5 +94,7 @@ public:
 
     char *getFileFolder();
 
-
+    inline bool exists(const std::string &name);
 };
+
+#endif // PATH_GEN_H
