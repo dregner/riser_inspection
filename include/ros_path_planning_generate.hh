@@ -13,22 +13,47 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 
+// DJI SDK includes
+#include <dji_sdk/Activation.h>
+#include <dji_sdk/DroneTaskControl.h>
+#include <dji_sdk/SDKControlAuthority.h>
+#include <dji_sdk/MissionWpUpload.h>
+#include <dji_sdk/MissionWpAction.h>
 
 //Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
 #include <riser_inspection/wpFolders.h>
+
 //System includes
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <cstdlib>
+#include <experimental/filesystem>
+#include <sys/stat.h>
+#include <dirent.h>
 
+//Class of Path Generate
 #include <path_generator.hh>
-#define C_EARTH (double)6378137.0
-#define C_PI (double)3.141592653589793
-#define DEG2RAD(DEG) ((DEG) * ((C_PI) / (180.0)))
-#define RAD2DEG(RAD) ((RAD) * (180.0) / (C_PI))
+
+typedef struct ServiceAck
+{
+    bool         result;
+    int          cmd_set;
+    int          cmd_id;
+    unsigned int ack_data;
+    ServiceAck(bool res, int set, int id, unsigned int ack)
+            : result(res)
+            , cmd_set(set)
+            , cmd_id(id)
+            , ack_data(ack)
+    {
+    }
+    ServiceAck()
+    {
+    }
+} ServiceAck;
 
 class RiserInspection {
 private:
@@ -40,6 +65,10 @@ private:
     message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv;
+
+    ros::ServiceClient     drone_activation_service;
+    ros::ServiceClient     sdk_ctrl_authority_service;
+    ros::ServiceClient     drone_task_service;
 
 
     sensor_msgs::NavSatFix ptr_gps_position_;
@@ -63,10 +92,19 @@ private:
     PathGenerate pathGenerator;
 
     bool firstTime;
+    bool node_start_ = true; // a variable used to indentify the start of node to get initial position
 public:
     RiserInspection();
 
     ~RiserInspection();
+
+    bool askControlAuthority();
+
+    ServiceAck activate();
+
+    ServiceAck obtainCtrlAuthority();
+
+    ServiceAck takeoff();
 
     void initSubscribers(ros::NodeHandle &nh);
 

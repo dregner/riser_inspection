@@ -1,19 +1,13 @@
 //
 // Created by regner on 06/09/2021.
 //
-#include <sensor_msgs/NavSatFix.h>
-#include <sensor_msgs/Imu.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-//#include <riser_inspection/wpGenerate.h>
 
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <cstdlib>
 #include <vector>
+#include <iomanip>
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))

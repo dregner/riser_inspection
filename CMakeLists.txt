@@ -12,11 +12,12 @@ find_package(ignition-math4)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge image_transport roscpp rospy actionlib_msgs sensor_msgs
-        std_msgs message_generation message_filters)
-find_package(dji_sdk REQUIRED)
-include_directories(${dji_sdk_INCLUDE_DIRS})
-include_directories(${dji_sdk_DIRS})
+find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge
+        image_transport roscpp rospy actionlib_msgs sensor_msgs
+        std_msgs message_generation message_filters nav_msgs dji_sdk)
+find_package(DJIOSDK REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+
 
 find_package(OpenCV 3 REQUIRED)
 if (OpenCV_FOUND)
@@ -35,24 +36,30 @@ elseif()
     message(STATUS "Did not find CUDA in the system")
 endif()
 
+################################################
+## Declare ROS messages, services and actions ##
+################################################
 
-find_package(Boost REQUIRED COMPONENTS system)
 
-add_action_files(DIRECTORY action FILES PathGen.action)
-
-add_service_files(DIRECTORY srv FILES wpGenerate.srv wpFolders.srv)
+add_service_files(FILES wpGenerate.srv wpFolders.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES riser_inspection
-        CATKIN_DEPENDS roscpp sensor_msgs std_msgs actionlib_msgs)
+        CATKIN_DEPENDS roscpp sensor_msgs std_msgs actionlib_msgs dji_sdk dji_sdk_node)
 
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+include_directories(
+        include
+        ${catkin_INCLUDE_DIRS}
+        ${Boost_INCLUDE_DIRS}
+        ${DJIOSDK_INCLUDE_DIRS}
+        ${dji_sdk_node_INCLUDE_DIRS})
+
 add_library(RiserPathGenLIB src/path/path_generator.cpp ${catkin_LIBRARIES})
 add_library(RiserPathGenROSLIB src/ros/ros_path_planning_generate.cpp ${catkin_LIBRARIES})
 
@@ -63,9 +70,6 @@ add_library(RiserPathGenROSLIB src/ros/ros_path_planning_generate.cpp ${catkin_L
 add_executable(path_generator src/path/path_generator.cpp)
 target_link_libraries(path_generator RiserPathGenLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
 
-#add_executable(ros_pathGen src/ros_pathGen.cpp)
-#target_link_libraries(ros_pathGen RiserPathGenROSLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
-
 add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
 target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
@@ -73,7 +77,7 @@ add_executable(stereo_calib src/stereo/stereo_calib.cpp)
 target_link_libraries(stereo_calib ${OpenCV_LIBS})
 
 add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp )
-target_link_libraries(riser_inspection_node RiserPathGenROSLIB RiserPathGenLIB ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+target_link_libraries(riser_inspection_node RiserPathGenROSLIB RiserPathGenLIB ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)
