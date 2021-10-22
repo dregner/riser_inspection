@@ -4,22 +4,22 @@
 #include <dirent.h>
 
 
-PathGenerate::PathGenerate() {
+RiserInspection::RiserInspection() {
     initServices(nh_);
     initSubscribers(nh_);
 
 }
 
-PathGenerate::~PathGenerate() {
+RiserInspection::~RiserInspection() {
 
 }
 
-void PathGenerate::initServices(ros::NodeHandle &nh) {
+void RiserInspection::initServices(ros::NodeHandle &nh) {
     try {
         generate_pathway_srv_ = nh.advertiseService("riser_inspection/waypoint_generator",
-                                                    &PathGenerate::PathGen_serviceCB, this);
+                                                    &RiserInspection::PathGen_serviceCB, this);
         ROS_INFO("Service riser_inspection/waypoint_generator initialize");
-        wp_folders_srv = nh.advertiseService("riser_inspection/Folder", &PathGenerate::Folders_serviceCB, this);
+        wp_folders_srv = nh.advertiseService("riser_inspection/Folder", &RiserInspection::Folders_serviceCB, this);
         ROS_INFO("Service riser_inspection/Folder initialized");
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
@@ -27,7 +27,7 @@ void PathGenerate::initServices(ros::NodeHandle &nh) {
 }
 
 
-void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
+void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
     try {
         ros::NodeHandle nh_private("~");
 
@@ -40,8 +40,8 @@ void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
         rtk_position_sub_.subscribe(nh, rtk_topic_, 1);
         ROS_INFO("Subscriber in Camera RTK Topic: %s", rtk_topic_.c_str());
 
-        sync_.reset(new Sync(PathGeneratePolicy(10), gps_position_sub_, rtk_position_sub_));
-        sync_->registerCallback(boost::bind(&PathGenerate::get_gps_position, this, _1, _2));
+        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_position_sub_, rtk_position_sub_));
+        sync_->registerCallback(boost::bind(&RiserInspection::get_gps_position, this, _1, _2));
 
         ROS_INFO("Subscribe complet");
     } catch (ros::Exception &e) {
@@ -49,7 +49,7 @@ void PathGenerate::initSubscribers(ros::NodeHandle &nh) {
     }
 }
 
-void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
+void RiserInspection::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps,
                                     const sensor_msgs::NavSatFixConstPtr &msg_rtk) {
     ptr_gps_position_ = *msg_gps;
     ptr_rtk_position_ = *msg_rtk;
@@ -62,18 +62,18 @@ void PathGenerate::get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gp
     }
 }
 
-bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
+bool RiserInspection::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                      riser_inspection::wpGenerate::Response &res) {
 
-    riserInspection.setInitCoord(5, 0.3, lat0_, lon0_, alt0_, 74.2);
-    riserInspection.setInspectionParam(5, 4, 15, -0.3);
+    pathGenerator.setInitCoord(5, 0.3, lat0_, lon0_, alt0_, 74.2);
+    pathGenerator.setInspectionParam(5, 4, 15, -0.3);
     try {
-        riserInspection.createInspectionPoints();
+        pathGenerator.createInspectionPoints();
         ROS_INFO("Waypoints created");
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         res.result = false;
-        riserInspection.closeFile();
+        pathGenerator.closeFile();
         return res.result;
     }
     res.result = true;
@@ -81,32 +81,32 @@ bool PathGenerate::PathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
     return res.result;
 }
 
-bool PathGenerate::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
+bool RiserInspection::Folders_serviceCB(riser_inspection::wpFolders::Request &req,
                                      riser_inspection::wpFolders::Response &res) {
 
     if (req.file_name.c_str() != NULL) {
         ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
-        riserInspection.changeFileName(req.file_name);
+        pathGenerator.changeFileName(req.file_name);
     }
     if (exists(req.file_path.c_str())) {
-        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), riserInspection.getFileName());
-        riserInspection.changeFileFolder(req.file_path);
+        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName());
+        pathGenerator.changeFileFolder(req.file_path);
         res.result = true;
         return res.result;
     } else {
-        ROS_ERROR("Folder does not exist, file will be written in %s/%s", riserInspection.getFileFolder(), riserInspection.getFileName(););
+        ROS_ERROR("Folder does not exist, file will be written in %s/%s", pathGenerator.getFileFolder(), pathGenerator.getFileName(););
         res.result = false;
         return res.result;
     }
 }
 
 
-inline bool PathGenerate::exists(const std::string &name) {
+inline bool RiserInspection::exists(const std::string &name) {
     struct stat buffer;
     return (stat(name.c_str(), &buffer) == 0);
 }
 
-std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(std::string filename) {
+std::vector<std::pair<std::string, std::vector<float>>> RiserInspection::read_csv(std::string filename) {
     // Reads a CSV file into a vector of <string, vector<int>> pairs where
     // each pair represents <column name, column values>
 

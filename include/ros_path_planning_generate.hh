@@ -15,8 +15,8 @@
 
 
 //Riser inspection includes
-//#include <riser_inspection/wpGenerate.h>
-//#include <riser_inspection/wpFolders.h>
+#include <riser_inspection/wpGenerate.h>
+#include <riser_inspection/wpFolders.h>
 //System includes
 #include <string>
 #include <iostream>
@@ -30,7 +30,7 @@
 #define DEG2RAD(DEG) ((DEG) * ((C_PI) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (C_PI))
 
-class PathGenerate {
+class RiserInspection {
 private:
     /**
      * ROS STUFF
@@ -46,8 +46,8 @@ private:
     sensor_msgs::NavSatFix ptr_rtk_position_;
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
-            sensor_msgs::NavSatFix> PathGeneratePolicy;
-    typedef message_filters::Synchronizer<PathGeneratePolicy> Sync;
+            sensor_msgs::NavSatFix> RiserInspectionPolicy;
+    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
     boost::shared_ptr<Sync> sync_;
 
 
@@ -60,21 +60,21 @@ private:
 
     std::ofstream saved_wp_;
 
-    RiserInspection riserInspection;
+    PathGenerate pathGenerator;
 
     bool firstTime;
 public:
-    PathGenerate();
+    RiserInspection();
 
-    ~PathGenerate();
+    ~RiserInspection();
 
     void initSubscribers(ros::NodeHandle &nh);
 
     void initServices(ros::NodeHandle &nh);
 
-//    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
+    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
-//    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
+    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
     inline bool exists(const std::string &name);
 
