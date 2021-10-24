@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(riser_inspection)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_STANDARD 14)
-
-
-
 find_package(ignition-math4)
 
 ## Find catkin macros and libraries
@@ -15,8 +9,13 @@ find_package(ignition-math4)
 find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge
         image_transport roscpp rospy actionlib_msgs sensor_msgs
         std_msgs message_generation message_filters nav_msgs dji_sdk)
+
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+
+## Compile as C++11, supported in ROS Kinetic and newer
+#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_STANDARD 14)
 
 
 find_package(OpenCV 3 REQUIRED)
@@ -60,15 +59,12 @@ include_directories(
         ${DJIOSDK_INCLUDE_DIRS}
         ${dji_sdk_node_INCLUDE_DIRS})
 
-add_library(RiserPathGenLIB src/path/path_generator.cpp ${catkin_LIBRARIES})
-add_library(RiserPathGenROSLIB src/ros/ros_path_planning_generate.cpp ${catkin_LIBRARIES})
-
-#set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math2")
+set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
-add_executable(path_generator src/path/path_generator.cpp)
-target_link_libraries(path_generator RiserPathGenLIB ${catkin_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(path_generator src/path/main_path_generator.cpp src/path/path_generator.cpp)
+target_link_libraries(path_generator ${catkin_LIBRARIES} )
 
 add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
 target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
@@ -76,8 +72,8 @@ target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_executable(stereo_calib src/stereo/stereo_calib.cpp)
 target_link_libraries(stereo_calib ${OpenCV_LIBS})
 
-add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp )
-target_link_libraries(riser_inspection_node RiserPathGenROSLIB RiserPathGenLIB ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp src/ros/ros_path_planning_generate.cpp src/path/path_generator.cpp)
+target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)

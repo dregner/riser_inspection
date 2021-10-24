@@ -92,9 +92,12 @@ public:
 
     void setFileName(std::string file_name);
 
+    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
+
+
     char *getFileFolder();
 
-    inline bool exists(const std::string &name);
+    bool exists(const std::string &name);
 };
 
 #endif // PATH_GEN_H

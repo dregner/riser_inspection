@@ -133,13 +133,13 @@ void PathGenerate::closeFile() {
     saved_wp_.close();
 }
 
-inline bool PathGenerate::exists(const std::string &name) {
+bool PathGenerate::exists(const std::string &name) {
     struct stat buffer;
     return (stat(name.c_str(), &buffer) == 0);
 }
 
 void PathGenerate::setFileName(std::string file_name) {
-    file_name_ = file_name.c_str();
+    file_name_ = file_name;
 }
 
 char *PathGenerate::getFileName() {
@@ -152,21 +152,41 @@ char *PathGenerate::getFileFolder() {
 }
 
 void PathGenerate::setFileFolder(std::string file_name) {
-    if (exists(file_name.c_str())) { file_path_ = file_name.c_str(); }
+    if (exists(file_name.c_str())) { file_path_ = file_name + "/"; }
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 
+std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(std::string filename) {
+    // Reads a CSV file into a vector of <string, vector<int>> pairs where
+    // each pair represents <column name, column values>
 
-int main() {
-    PathGenerate riser;
-    std::cout << "Creating waypoint pathway" << std::endl;
-    riser.setFileFolder("/home/vant3d/Documents");
-    riser.setInitCoord(5, 0.3, 46.775450, 8.345125, 1839.8 + 10, 74.2);
-    riser.setInspectionParam(5, 4, 15, -0.3);
-    riser.createInspectionPoints();
+    // Create a vector of <string, int vector> pairs to store the result
+    std::vector<std::pair<std::string, std::vector<float>>> result;
 
-    std::cout << "Directory " << riser.getFileFolder() << "/" << riser.getFileName() << std::endl;
-    std::cout << "Finished" << std::endl;
+    // Create an input filestream
+    std::ifstream myFile(filename);
 
-    return 0;
+    // Make sure the file is open
+    if (!myFile.is_open()) throw std::runtime_error("Could not open file");
+
+    // Helper vars
+    std::string line, colname;
+    int val;
+
+    // Read the column names
+    if (myFile.good()) {
+        // Extract the first line in the file
+        std::getline(myFile, line);
+
+        // Create a stringstream from line
+        std::stringstream ss(line);
+
+        // Extract each column name
+        while (std::getline(ss, colname, ',')) {
+
+            // Initialize and add <colname, int vector> pairs to result
+            result.push_back({colname, std::vector<float>{}});
+        }
+    }
 }
+

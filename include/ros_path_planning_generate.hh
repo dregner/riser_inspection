@@ -16,11 +16,13 @@
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Imu.h>
+#include <geometry_msgs/QuaternionStamped.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
+#include <ignition/math/Pose3.hh>
 
 // DJI SDK includes
 #include <dji_sdk/Activation.h>
@@ -29,6 +31,7 @@
 #include <dji_sdk/MissionWpUpload.h>
 #include <dji_sdk/MissionWpAction.h>
 #include <djiosdk/dji_vehicle.hpp>
+#include <djiosdk/dji_telemetry.hpp>
 
 
 //Riser inspection includes
@@ -67,11 +70,15 @@ class RiserInspection {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_position_sub_;
-    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_position_sub_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_sub_;
+    message_filters::Subscriber<geometry_msgs::QuaternionStamped> attitude_sub_;
+
     /// Foler and File services
     ros::ServiceServer generate_pathway_srv_;
-    ros::ServiceServer wp_folders_srv;
+    ros::ServiceServer wp_folders_srv_;
+    ros::ServiceServer start_mission_srv_;
+
     /// DJI Services
     ros::ServiceClient     drone_activation_service;
     ros::ServiceClient     sdk_ctrl_authority_service;
@@ -79,18 +86,20 @@ private:
     ros::ServiceClient     waypoint_action_service;
     ros::ServiceClient     waypoint_upload_service;
 
-    /// Messages from GPS and RTK
+    /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix ptr_gps_position_;
     sensor_msgs::NavSatFix ptr_rtk_position_;
+    geometry_msgs::QuaternionStamped ptr_attitude_;
+    ignition::math::Quaterniond drone_rpy_;
+
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
-            sensor_msgs::NavSatFix> RiserInspectionPolicy;
+            sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped> RiserInspectionPolicy;
     typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
     boost::shared_ptr<Sync> sync_;
 
 
     /// Initial position to waypoint creates
-    // TODO: Must come as initialize parameters
     double lat0_ = -27.605299;  // Starting latitude
     double lon0_ = -48.520547;  // Starting longitude
     float alt0_ = 3;              // Starting altitude
@@ -111,15 +120,13 @@ public:
 
     void initServices(ros::NodeHandle &nh);
 
-    bool Folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
+    bool folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
-    bool PathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
+    bool pathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
-    bool StartMission_serviceCB(riser_inspection::wpStartMission::Request &req, riser_inspection::wpStartMission::Response &res);
+    bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req, riser_inspection::wpStartMission::Response &res);
 
-    void get_gps_position(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk);
-
-    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
+    void position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk, const geometry_msgs::QuaternionStampedConstPtr &msg_att);
 
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
