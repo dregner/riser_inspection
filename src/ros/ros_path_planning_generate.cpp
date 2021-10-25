@@ -57,20 +57,16 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 
 bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                         riser_inspection::wpGenerate::Response &res) {
-
-    pathGenerator.setInitCoord(5, 0.3, lat0_, lon0_, alt0_, 74.2);
-    pathGenerator.setInspectionParam(5, 4, 15, -0.3);
+    pathGenerator.setInitCoord(req.riser_distance, req.riser_diameter / 1000, lat0_, lon0_, alt0_, head0_);
+    pathGenerator.setInspectionParam(req.horizontal_number, req.vertical_number, req.delta_angle, req.delta_height);
     try {
         pathGenerator.createInspectionPoints();
-        ROS_INFO("Waypoints created");
+        ROS_INFO("Waypoints created at %s%s", pathGenerator.getFolderName().c_str(), pathGenerator.getFileName().c_str());
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
-        res.result = false;
-//        pathGenerator.closeFile();
-        return res.result;
+        return res.result = false;
     }
-    res.result = true;
-    return res.result;
+    return res.result = true;
 }
 
 bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &req,
@@ -100,14 +96,12 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 //    ROS_INFO("Total of waypoints: %f", pathGenerator.)
     if (req.waypoint_number == NULL) { ROS_INFO("Mission will be started at %i", req.waypoint_number); }
     else { ROS_INFO("Mission will be start from begin"); }
-    bool getAuthority = askControlAuthority();
-    if (getAuthority == true) {
-//        std::vector<DJI::OSDK::WayPointSettings> wp_list = pathGenerator.read_csv(
-//                pathGenerator.getFileFolder() + pathGenerator.getFileName());
-        return true;
+    if (!askControlAuthority()) {
+        ROS_INFO("Cannot get Authority Control");
+        return res.result = false;
     } else {
-        ROS_INFO("Cannot start mission");
-        return false;
+        ROS_INFO("Start Waypoint Mission");
+        return res.result = runWaypointMission(req.waypoint_number, 1);
     }
 
 }
@@ -122,11 +116,11 @@ void RiserInspection::position_subscribeCB(const sensor_msgs::NavSatFixConstPtr 
                    ptr_attitude_.quaternion.z);
 
     if (node_start_) {
-        lat0_ = ptr_rtk_position_.latitude;
-        lon0_ = ptr_rtk_position_.longitude;
-        alt0_ = ptr_rtk_position_.altitude;
-        head0_ = drone_rpy_.Yaw();
-        //TODO: which topic provides heading value?
+        /// Using GPS position error +- 2000 mmm
+        lat0_ = ptr_gps_position_.latitude;
+        lon0_ = ptr_gps_position_.longitude;
+        alt0_ = ptr_gps_position_.altitude;
+        head0_ = drone_rpy_.Yaw(); // heading value??
         node_start_ = false;
     }
 }
@@ -158,21 +152,6 @@ RiserInspection::obtainCtrlAuthority() {
     return ServiceAck(sdkAuthority.response.result, sdkAuthority.response.cmd_set,
                       sdkAuthority.response.cmd_id,
                       sdkAuthority.response.ack_data);
-}
-
-ServiceAck
-RiserInspection::takeoff() {
-    dji_sdk::DroneTaskControl droneTaskControl;
-    droneTaskControl.request.task = 4;
-    drone_task_service.call(droneTaskControl);
-    if (!droneTaskControl.response.result) {
-        ROS_WARN("ack.info: set = %i id = %i", droneTaskControl.response.cmd_set,
-                 droneTaskControl.response.cmd_id);
-        ROS_WARN("ack.data: %i", droneTaskControl.response.ack_data);
-    }
-    return ServiceAck(
-            droneTaskControl.response.result, droneTaskControl.response.cmd_set,
-            droneTaskControl.response.cmd_id, droneTaskControl.response.ack_data);
 }
 
 ServiceAck
@@ -262,16 +241,14 @@ bool RiserInspection::runWaypointMission(uint8_t numWaypoints, int responseTimeo
     dji_sdk::MissionWaypointTask waypointTask;
     setWaypointInitDefaults(waypointTask);
 
-    // Waypoint Mission: Create Waypoints
-    //float64_t increment = 0.000001 / C_PI * 180;
-    //float32_t start_alt = 10;
+
     ROS_INFO("Creating Waypoints..\n");
-    std::vector<WayPointSettings> generatedWaypts;
-//            createWaypoints(numWaypoints, increment, start_alt);
+    std::vector<WayPointSettings> generatedWP;
+
 
     // Waypoint Mission: Upload the waypoints
     ROS_INFO("Uploading Waypoints..\n");
-    uploadWaypoints(generatedWaypts, responseTimeout, waypointTask);
+    uploadWaypoints(generatedWP, responseTimeout, waypointTask);
 
     // Waypoint Mission: Init mission
     ROS_INFO("Initializing Waypoint Mission..\n");
@@ -295,7 +272,7 @@ bool RiserInspection::runWaypointMission(uint8_t numWaypoints, int responseTimeo
     return true;
 }
 
-void RiserInspection::setWaypointDefaults(WayPointSettings *wp) {
+void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
     wp->damping = 0;
     wp->yaw = 0;
     wp->gimbalPitch = 0;
@@ -321,3 +298,23 @@ void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
 }
 
+std::vector<DJI::OSDK::WayPointSettings> RiserInspection::DJI_waypoints(std::vector<std::vector<std::string>> wp_list) {
+    // Print the content of row by row on screen
+    int total_wp = wp_list.size(); // First row represent labels, first waypoint is 1 and last N;
+
+    for (int i = 0; i < wp_list.size(); i++) {
+        for (int j = 0; j < wp_list[0].size(); j++) {
+            if (j != wp_list[0].size() - 1) { std::cout << wp_list[i][j] << " , "; }
+            else { std::cout << wp_list[i][j] << std::endl; }
+            if (i > 0) {
+                if (j == 4) {
+                    if (wp_list[i][j] == "TRUE") { wp_list[i][j] = std::to_string(1); } else { wp_list[i][j] = std::to_string(0); }
+                }
+                double value = std::stod(wp_list[i][j]);
+                if (j != wp_list[0].size() - 1) { std::cout << "T - " << std::setprecision(11) << value << " , ";}
+                else{std::cout << "T - " << std::setprecision(11) << value <<std::endl;}
+
+            }
+        }
+    }
+}

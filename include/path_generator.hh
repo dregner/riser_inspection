@@ -21,7 +21,7 @@
 #include <vector>
 #include <iomanip>
 #include <sys/stat.h>
-#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
@@ -97,8 +97,8 @@ public:
 
     void setFolderName(std::string file_name);
 
-    std::vector<std::pair<std::string, std::vector<double>>> read_csv(std::string filename);
-
+   // Function to fetch data from a CSV File
+    std::vector<std::vector<std::string> > read_csv(std::string filepath, std::string delimiter);
 };
 
 #endif // PATH_GEN_H

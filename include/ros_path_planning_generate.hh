@@ -138,8 +138,6 @@ public:
 
     ServiceAck obtainCtrlAuthority();
 
-    ServiceAck takeoff();
-
     bool askControlAuthority();
 
     void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings>& wp_list,
@@ -152,6 +150,7 @@ public:
 
     void setWaypointInitDefaults(dji_sdk::MissionWaypointTask& waypointTask);
 
+    std::vector<DJI::OSDK::WayPointSettings> DJI_waypoints(std::vector<std::vector<float>> wp_list);
 };
 
 #endif // RISER_INSPECTION_H
