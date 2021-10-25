@@ -66,6 +66,9 @@ set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 add_executable(path_generator src/path/main_path_generator.cpp src/path/path_generator.cpp)
 target_link_libraries(path_generator ${catkin_LIBRARIES} )
 
+add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp src/path/read_file.cpp)
+target_link_libraries(read_file ${catkin_LIBRARIES} )
+
 add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
 target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 

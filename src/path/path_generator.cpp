@@ -27,7 +27,7 @@ void PathGenerate::setInitCoord(double dist, float d_cyl, double lat, double lon
     head0_ = head;
 }
 
-void PathGenerate::inspectionAngletoHeading(float polar_angle) {
+void PathGenerate::inspectionAngle2Heading(float polar_angle) {
 
     float heading = -polar_angle + head0_;
     /// Conditions to keep range - 180 to 180
@@ -53,15 +53,14 @@ void PathGenerate::cart2gcs(double altitude) {
     waypoint_[2] = altitude;
 }
 
-void PathGenerate::csv_save_ugcs(double *wp_array, int row, int wp_number) {
+void PathGenerate::csv_save_ugcs(double *wp_array, int wp_number) {
     if (firstTime == true) {
         saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
         firstTime = false;
     }
-
     if (saved_wp_.is_open()) {
-        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ", ";
-        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE, " << std::setprecision(2)
+        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ",";
+        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE," << std::setprecision(2)
                   << wp_number << "," << 0 << ",";
         saved_wp_ << std::setprecision(10) << wp_array[3] << "," << 2 << "\n";
     }
@@ -91,7 +90,7 @@ void PathGenerate::csv_save_DJI(double *wp_array, int row) {
 
 void PathGenerate::findCenterHeading(int deltaAngle, int angleCount) {
     if (angleCount % 2 == 1) { start_angle_ = (-deltaAngle * angleCount / 2) + deltaAngle / 2; }
-    else { start_angle_ = (int) (-angleCount * round(angleCount / 2)); }
+    else { start_angle_ = (int) (-angleCount  * round(angleCount / 2)); }
 }
 
 void PathGenerate::createInspectionPoints() {
@@ -108,7 +107,7 @@ void PathGenerate::createInspectionPoints() {
             /// Set Polar values
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
-            inspectionAngletoHeading((float) polar_array_[1]);
+            inspectionAngle2Heading((float) polar_array_[1]);
             polar_array_[1] -= +head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
             /// Convert Polar to Cartesian
             polar2cart(polar_array_[0], polar_array_[1]);
@@ -116,12 +115,13 @@ void PathGenerate::createInspectionPoints() {
             cart2gcs(altitude);
             /// Export to CSV file
 //            csv_save_wp(waypoint_, sizeof(waypoint_) / sizeof(waypoint_[0]));
-            csv_save_ugcs(waypoint_, sizeof(waypoint_) / sizeof(waypoint_[0]), count_wp);
+            csv_save_ugcs(waypoint_, count_wp);
             if (k == altitudeCount_ -
                      1) { initial = altitude; } // set initial altitude value when finished de vertical movement.
             count_wp += 1;
         }
     }
+    closeFile();
 }
 
 void PathGenerate::openFile() {
@@ -142,39 +142,40 @@ void PathGenerate::setFileName(std::string file_name) {
     file_name_ = file_name;
 }
 
-char *PathGenerate::getFileName() {
+std::string PathGenerate::getFileName() {
 
-    return const_cast<char *>(file_name_.c_str());
+    return file_name_;
 }
 
-char *PathGenerate::getFileFolder() {
-    return const_cast<char *>(file_path_.c_str());
+std::string PathGenerate::getFolderName() {
+    return file_path_;
 }
 
-void PathGenerate::setFileFolder(std::string file_name) {
+void PathGenerate::setFolderName(std::string file_name) {
     if (exists(file_name.c_str())) { file_path_ = file_name + "/"; }
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 
-std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(std::string filename) {
+std::vector<std::pair<std::string, std::vector<double>>> PathGenerate::read_csv(std::string filename){
     // Reads a CSV file into a vector of <string, vector<int>> pairs where
     // each pair represents <column name, column values>
 
     // Create a vector of <string, int vector> pairs to store the result
-    std::vector<std::pair<std::string, std::vector<float>>> result;
+    std::vector<std::pair<std::string, std::vector<double>>> result;
 
     // Create an input filestream
     std::ifstream myFile(filename);
 
     // Make sure the file is open
-    if (!myFile.is_open()) throw std::runtime_error("Could not open file");
+    if(!myFile.is_open()) throw std::runtime_error("Could not open file");
 
     // Helper vars
     std::string line, colname;
     int val;
 
     // Read the column names
-    if (myFile.good()) {
+    if(myFile.good())
+    {
         // Extract the first line in the file
         std::getline(myFile, line);
 
@@ -182,11 +183,39 @@ std::vector<std::pair<std::string, std::vector<float>>> PathGenerate::read_csv(s
         std::stringstream ss(line);
 
         // Extract each column name
-        while (std::getline(ss, colname, ',')) {
+        while(std::getline(ss, colname, ',')){
 
             // Initialize and add <colname, int vector> pairs to result
-            result.push_back({colname, std::vector<float>{}});
+            result.push_back({colname, std::vector<double> {}});
         }
     }
+
+    // Read data, line by line
+    while(std::getline(myFile, line))
+    {
+        // Create a stringstream of the current line
+        std::stringstream ss(line);
+
+        // Keep track of the current column index
+        int colIdx = 0;
+
+        // Extract each integer
+        while(ss >> val){
+
+            // Add the current integer to the 'colIdx' column's values vector
+            result.at(colIdx).second.push_back(val);
+
+            // If the next token is a comma, ignore it and move on
+            if(ss.peek() == ',') ss.ignore();
+
+            // Increment the column index
+            colIdx++;
+        }
+    }
+
+    // Close file
+    myFile.close();
+
+    return result;
 }
 

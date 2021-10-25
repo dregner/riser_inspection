@@ -42,11 +42,12 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 
         wp_folders_srv_ = nh.advertiseService("riser_inspection/folder_and_file", &RiserInspection::folders_serviceCB,
                                               this);
-        ROS_INFO("Service riser_inspection/Folder initialized. Waypoint file: %s/%s", pathGenerator.getFileFolder(),
-                 pathGenerator.getFileName());
+        ROS_INFO("Service riser_inspection/Folder initialized. Waypoint file: %s/%s",
+                 pathGenerator.getFolderName().c_str(),
+                 pathGenerator.getFileName().c_str());
 
         start_mission_srv_ = nh.advertiseService("riser_inspection/start_mission",
-                                                 &RiserInspection::position_subscribeCB, this);
+                                                 &RiserInspection::startMission_serviceCB, this);
         ROS_INFO("service riser_inspection/start_mission initialized");
 
     } catch (ros::Exception &e) {
@@ -65,11 +66,10 @@ bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &r
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         res.result = false;
-        pathGenerator.closeFile();
+//        pathGenerator.closeFile();
         return res.result;
     }
     res.result = true;
-    saved_wp_.close();
     return res.result;
 }
 
@@ -81,13 +81,13 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
         pathGenerator.setFileName(req.file_name);
     }
     if (pathGenerator.exists(req.file_path.c_str())) {
-        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName());
-        pathGenerator.setFileFolder(req.file_path);
+        ROS_INFO("Waypoint folder changed %s%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
+        pathGenerator.setFolderName(req.file_path);
         res.result = true;
         return res.result;
     } else {
-        ROS_ERROR("Folder does not exist, file will be written in %s/%s", pathGenerator.getFileFolder(),
-                  pathGenerator.getFileName());
+        ROS_ERROR("Folder does not exist, file will be written in %s%s", pathGenerator.getFolderName().c_str(),
+                  pathGenerator.getFileName().c_str());
         res.result = false;
         return res.result;
     }
@@ -95,16 +95,15 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
 
 bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                              riser_inspection::wpStartMission::Response &res) {
-    ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFileFolder(),
-             pathGenerator.getFileName());
+    ROS_INFO("Mission will be started using file from %s%s", pathGenerator.getFolderName().c_str(),
+             pathGenerator.getFileName().c_str());
 //    ROS_INFO("Total of waypoints: %f", pathGenerator.)
     if (req.waypoint_number == NULL) { ROS_INFO("Mission will be started at %i", req.waypoint_number); }
     else { ROS_INFO("Mission will be start from begin"); }
     bool getAuthority = askControlAuthority();
     if (getAuthority == true) {
-        std::string folder = pathGenerator.getFileFolder();
-        std::string abs_path = folder.append(pathGenerator.getFileName());
-        std::vector<DJI::OSDK::WayPointSettings> wp_list = pathGenerator.read_csv(abs_path);
+//        std::vector<DJI::OSDK::WayPointSettings> wp_list = pathGenerator.read_csv(
+//                pathGenerator.getFileFolder() + pathGenerator.getFileName());
         return true;
     } else {
         ROS_INFO("Cannot start mission");

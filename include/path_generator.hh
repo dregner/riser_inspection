@@ -21,6 +21,7 @@
 #include <vector>
 #include <iomanip>
 #include <sys/stat.h>
+#include <boost/tokenizer.hpp>
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
@@ -66,7 +67,7 @@ public:
 
     void setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT);
 
-    void inspectionAngletoHeading(float polar_angle);
+    void inspectionAngle2Heading(float polar_angle);
 
     void polar2cart(double r, double alpha);
 
@@ -76,7 +77,7 @@ public:
 
     void createInspectionPoints();
 
-    void csv_save_ugcs(double *wp_array, int row, int wp_number); // Used to export on UgCS
+    void csv_save_ugcs(double *wp_array, int wp_number); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
@@ -86,18 +87,18 @@ public:
 
     void closeFile();
 
-    void setFileFolder(std::string file_name);
+    bool exists(const std::string &name);
 
-    char *getFileName();
+    std::string getFileName();
+
+    std::string getFolderName();
 
     void setFileName(std::string file_name);
 
-    std::vector<std::pair<std::string, std::vector<float>>> read_csv(std::string filename);
+    void setFolderName(std::string file_name);
 
+    std::vector<std::pair<std::string, std::vector<double>>> read_csv(std::string filename);
 
-    char *getFileFolder();
-
-    bool exists(const std::string &name);
 };
 
 #endif // PATH_GEN_H
