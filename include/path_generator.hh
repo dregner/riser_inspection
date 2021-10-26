@@ -98,7 +98,7 @@ public:
     void setFolderName(std::string file_name);
 
    // Function to fetch data from a CSV File
-    std::vector<std::vector<std::string> > read_csv(std::string filepath, std::string delimiter);
+    std::vector<std::vector<std::string> > read_csv(const std::string& filepath, const std::string& delimiter);
 };
 
 #endif // PATH_GEN_H

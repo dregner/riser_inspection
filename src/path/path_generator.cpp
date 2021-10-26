@@ -55,26 +55,31 @@ void PathGenerate::cart2gcs(double altitude) {
 
 void PathGenerate::csv_save_ugcs(double *wp_array, int wp_number) {
     if (firstTime == true) {
-        saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,Picture,WP,CameraTilt,UavYaw,WaitTime" << std::endl;
+        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << std::setprecision(10) << wp_array[0] << "," << std::setprecision(10) << wp_array[1] << ",";
-        saved_wp_ << std::setprecision(10) << wp_array[2] << "," << 1 << ",TRUE," << std::setprecision(2)
-                  << wp_number << "," << 0 << ",";
-        saved_wp_ << std::setprecision(10) << wp_array[3] << "," << 2 << "\n";
+        saved_wp_ << wp_number << ","
+                  << std::setprecision(10) << wp_array[0] << ","
+                  << std::setprecision(10) << wp_array[1] << ","
+                  << std::setprecision(10) << wp_array[2] << ","
+                  << std::setprecision(10) << wp_array[3] << ","
+                  << 1 << "," << 2 << ",TRUE" << "\n";
     }
 }
 
 void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int row, int wp_number) {
     if (firstTime == true) {
-        saved_wp_ << "Latitude,Longitude,AltitudeAMSL,Speed,WP,UavYaw,WaitTime" << std::endl;
+        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
         firstTime = false;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << std::setprecision(11) << wp_array[0] << "," << std::setprecision(11) << wp_array[1] << ", ";
-        saved_wp_ << std::setprecision(11) << wp_array[2] << "," << 1 << ',' << wp_number << ",";
-        saved_wp_ << std::setprecision(5) << wp_array[3] << "," << 2 << "\n";
+        saved_wp_ << wp_number << ","
+                  << std::setprecision(10) << wp_array[0] << ","
+                  << std::setprecision(10) << wp_array[1] << ","
+                  << std::setprecision(10) << wp_array[2] << ","
+                  << std::setprecision(10) << wp_array[3] << ","
+                  << 1 << "," << 2 << "\n";
     }
 }
 
@@ -90,7 +95,7 @@ void PathGenerate::csv_save_DJI(double *wp_array, int row) {
 
 void PathGenerate::findCenterHeading(int deltaAngle, int angleCount) {
     if (angleCount % 2 == 1) { start_angle_ = (-deltaAngle * angleCount / 2) + deltaAngle / 2; }
-    else { start_angle_ = (int) (-angleCount  * round(angleCount / 2)); }
+    else { start_angle_ = (int) (-angleCount * round(angleCount / 2)); }
 }
 
 void PathGenerate::createInspectionPoints() {
@@ -156,14 +161,12 @@ void PathGenerate::setFolderName(std::string file_name) {
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 
-std::vector<std::vector<std::string> > PathGenerate::read_csv(std::string filepath, std::string delimeter)
-{
+std::vector<std::vector<std::string> > PathGenerate::read_csv(const std::string& filepath, const std::string& delimeter) {
     std::ifstream file(filepath);
     std::vector<std::vector<std::string> > dataList;
-    std::string line = "";
+    std::string line;
     // Iterate through each line and split the content using delimeter
-    while (getline(file, line))
-    {
+    while (getline(file, line)) {
         std::vector<std::string> vec;
         boost::algorithm::split(vec, line, boost::is_any_of(delimeter));
         dataList.push_back(vec);

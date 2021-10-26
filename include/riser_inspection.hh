@@ -48,21 +48,17 @@
 //Class of Path Generate
 #include <path_generator.hh>
 
-typedef struct ServiceAck
-{
-    bool         result;
-    int          cmd_set;
-    int          cmd_id;
+typedef struct ServiceAck {
+    bool result;
+    int cmd_set;
+    int cmd_id;
     unsigned int ack_data;
+
     ServiceAck(bool res, int set, int id, unsigned int ack)
-            : result(res)
-            , cmd_set(set)
-            , cmd_id(id)
-            , ack_data(ack)
-    {
+            : result(res), cmd_set(set), cmd_id(id), ack_data(ack) {
     }
-    ServiceAck()
-    {
+
+    ServiceAck() {
     }
 } ServiceAck;
 
@@ -80,11 +76,11 @@ private:
     ros::ServiceServer start_mission_srv_;
 
     /// DJI Services
-    ros::ServiceClient     drone_activation_service;
-    ros::ServiceClient     sdk_ctrl_authority_service;
-    ros::ServiceClient     drone_task_service;
-    ros::ServiceClient     waypoint_action_service;
-    ros::ServiceClient     waypoint_upload_service;
+    ros::ServiceClient drone_activation_service;
+    ros::ServiceClient sdk_ctrl_authority_service;
+    ros::ServiceClient drone_task_service;
+    ros::ServiceClient waypoint_action_service;
+    ros::ServiceClient waypoint_upload_service;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix ptr_gps_position_;
@@ -124,15 +120,18 @@ public:
 
     bool pathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
 
-    bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req, riser_inspection::wpStartMission::Response &res);
+    bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
+                                riser_inspection::wpStartMission::Response &res);
 
-    void position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk, const geometry_msgs::QuaternionStampedConstPtr &msg_att);
+    void
+    position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk,
+                         const geometry_msgs::QuaternionStampedConstPtr &msg_att);
 
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
-                             DJI::OSDK::MISSION_ACTION   action);
+                             DJI::OSDK::MISSION_ACTION action);
 
-    ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask& waypointTask);
+    ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
 
     ServiceAck activate();
 
@@ -140,17 +139,19 @@ public:
 
     bool askControlAuthority();
 
-    void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings>& wp_list,
-                         int                                       responseTimeout,
-                         dji_sdk::MissionWaypointTask&             waypointTask);
+    std::vector<DJI::OSDK::WayPointSettings>
+    createWayPoint(const std::vector<std::vector<std::string>> csv_file, dji_sdk::MissionWaypointTask &waypointTask);
 
-    bool runWaypointMission(uint8_t numWaypoints, int responseTimeout);
+    void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list, int responseTimeout,
+                         dji_sdk::MissionWaypointTask &waypointTask);
 
-    void setWaypointDefaults(DJI::OSDK::WayPointSettings* wp);
+    bool runWaypointMission(int responseTimeout);
 
-    void setWaypointInitDefaults(dji_sdk::MissionWaypointTask& waypointTask);
+    void setWaypointDefaults(DJI::OSDK::WayPointSettings *wp);
 
-    std::vector<DJI::OSDK::WayPointSettings> DJI_waypoints(std::vector<std::vector<float>> wp_list);
+    static void setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask);
+
+    std::vector<DJI::OSDK::WayPointSettings> DJI_waypoints(std::vector<std::vector<std::string>> wp_list);
 };
 
 #endif // RISER_INSPECTION_H

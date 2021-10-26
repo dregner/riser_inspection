@@ -63,7 +63,7 @@ set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
-add_executable(path_generator src/path/main_path_generator.cpp src/path/path_generator.cpp)
+add_executable(path_generator src/path/create_path.cpp src/path/path_generator.cpp)
 target_link_libraries(path_generator ${catkin_LIBRARIES} )
 
 add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp )
@@ -75,7 +75,7 @@ target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_executable(stereo_calib src/stereo/stereo_calib.cpp)
 target_link_libraries(stereo_calib ${OpenCV_LIBS})
 
-add_executable(riser_inspection_node src/ros/ros_path_planning_node.cpp src/ros/ros_path_planning_generate.cpp src/path/path_generator.cpp)
+add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator

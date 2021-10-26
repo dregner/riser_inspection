@@ -1,4 +1,4 @@
-#include <ros_path_planning_generate.hh>
+#include <riser_inspection.hh>
 
 
 RiserInspection::RiserInspection() {
@@ -61,7 +61,8 @@ bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &r
     pathGenerator.setInspectionParam(req.horizontal_number, req.vertical_number, req.delta_angle, req.delta_height);
     try {
         pathGenerator.createInspectionPoints();
-        ROS_INFO("Waypoints created at %s%s", pathGenerator.getFolderName().c_str(), pathGenerator.getFileName().c_str());
+        ROS_INFO("Waypoints created at %s%s", pathGenerator.getFolderName().c_str(),
+                 pathGenerator.getFileName().c_str());
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         return res.result = false;
@@ -91,17 +92,17 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
 
 bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                              riser_inspection::wpStartMission::Response &res) {
-    ROS_INFO("Mission will be started using file from %s%s", pathGenerator.getFolderName().c_str(),
-             pathGenerator.getFileName().c_str());
-//    ROS_INFO("Total of waypoints: %f", pathGenerator.)
-    if (req.waypoint_number == NULL) { ROS_INFO("Mission will be started at %i", req.waypoint_number); }
-    else { ROS_INFO("Mission will be start from begin"); }
-    if (!askControlAuthority()) {
-        ROS_INFO("Cannot get Authority Control");
-        return res.result = false;
-    } else {
-        ROS_INFO("Start Waypoint Mission");
-        return res.result = runWaypointMission(req.waypoint_number, 1);
+    if (req.start) {
+        ROS_INFO("Mission will be started using file from %s%s", pathGenerator.getFolderName().c_str(),
+                 pathGenerator.getFileName().c_str());
+        if (!askControlAuthority()) {
+            ROS_INFO("Cannot get Authority Control");
+            return res.result = false;
+        } else {
+            ROS_INFO("Starting Waypoint Mission");
+
+            return res.result = runWaypointMission(100);
+        }
     }
 
 }
@@ -215,26 +216,56 @@ bool RiserInspection::askControlAuthority() {
     }
 }
 
-void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
-                                      int responseTimeout, dji_sdk::MissionWaypointTask &waypointTask) {
-    dji_sdk::MissionWaypoint waypoint;
-    for (std::vector<WayPointSettings>::iterator wp = wp_list.begin();
-         wp != wp_list.end(); ++wp) {
-        ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
-                 wp->longitude, wp->altitude);
-        waypoint.latitude = wp->latitude;
-        waypoint.longitude = wp->longitude;
-        waypoint.altitude = wp->altitude;
-        waypoint.damping_distance = 0;
-        waypoint.target_yaw = 0;
-        waypoint.target_gimbal_pitch = 0;
-        waypoint.turn_mode = 0;
-        waypoint.has_action = 0;
-        waypointTask.mission_waypoint.push_back(waypoint);
+std::vector<DJI::OSDK::WayPointSettings>
+RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_file,
+                                 dji_sdk::MissionWaypointTask &waypointTask) {
+    std::vector<DJI::OSDK::WayPointSettings> wp_list; // create a list (vector) containing waypoint structures
+
+    // Push first waypoint as a initial position
+    DJI::OSDK::WayPointSettings start_wp;
+    setWaypointDefaults(&start_wp);
+    start_wp.latitude = lat0_;
+    start_wp.longitude = lon0_;
+    start_wp.altitude = alt0_;
+    start_wp.yaw = head0_;
+    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", lat0_, lon0_, alt0_, head0_);
+    start_wp.index = 0;
+    wp_list.push_back(start_wp);
+
+
+    for (int k = 1; k < csv_file[0].size(); k++) {
+        /// "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture"
+        DJI::OSDK::WayPointSettings wp;
+        setWaypointDefaults(&wp);
+        wp.index = std::stoi(csv_file[0][k]);
+        wp.latitude = std::stod(csv_file[1][k]);
+        wp.longitude = std::stod(csv_file[2][k]);
+        wp.altitude = std::stod(csv_file[3][k]);
+        wp.yaw = std::stoi(csv_file[4][k]);
+        wp_list.push_back(wp);
     }
+    // Come back home
+    start_wp.index = csv_file[0].size()+1;
+    wp_list.push_back(start_wp);
+
+
+    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
+             wp->longitude, wp->altitude);
+    waypoint.latitude = wp->latitude;
+    waypoint.longitude = wp->longitude;
+    waypoint.altitude = wp->altitude;
+    waypoint.damping_distance = 0;
+    waypoint.target_yaw = 0;
+    waypoint.target_gimbal_pitch = 0;
+    waypoint.turn_mode = 0;
+    waypoint.has_action = 0;
+    waypointTask.mission_waypoint.push_back(waypoint);
+
+
 }
 
-bool RiserInspection::runWaypointMission(uint8_t numWaypoints, int responseTimeout) {
+
+bool RiserInspection::runWaypointMission(int responseTimeout) {
     ros::spinOnce();
 
     // Waypoint Mission : Initialization
@@ -243,10 +274,12 @@ bool RiserInspection::runWaypointMission(uint8_t numWaypoints, int responseTimeo
 
 
     ROS_INFO("Creating Waypoints..\n");
-    std::vector<WayPointSettings> generatedWP;
+    // Transform from CSV to DJI vector
+    std::vector<std::vector<std::string>> filePathGen = pathGenerator.read_csv(
+            pathGenerator.getFolderName() + pathGenerator.getFileName(), ",");
+    std::vector<WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
 
-
-    // Waypoint Mission: Upload the waypoints
+        // Waypoint Mission: Upload the waypoints
     ROS_INFO("Uploading Waypoints..\n");
     uploadWaypoints(generatedWP, responseTimeout, waypointTask);
 
@@ -272,6 +305,27 @@ bool RiserInspection::runWaypointMission(uint8_t numWaypoints, int responseTimeo
     return true;
 }
 
+void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings>& wp_list,
+                int responseTimeout, dji_sdk::MissionWaypointTask& waypointTask)
+{
+    dji_sdk::MissionWaypoint waypoint;
+    for (std::vector<WayPointSettings>::iterator wp = wp_list.begin();
+         wp != wp_list.end(); ++wp)
+    {
+        ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
+                 wp->longitude, wp->altitude);
+        waypoint.latitude            = wp->latitude;
+        waypoint.longitude           = wp->longitude;
+        waypoint.altitude            = wp->altitude;
+        waypoint.damping_distance    = 0;
+        waypoint.target_yaw          = 0;
+        waypoint.target_gimbal_pitch = 0;
+        waypoint.turn_mode           = 0;
+        waypoint.has_action          = 0;
+        waypointTask.mission_waypoint.push_back(waypoint);
+    }
+}
+
 void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
     wp->damping = 0;
     wp->yaw = 0;
@@ -288,33 +342,12 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
 }
 
 void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask) {
-    waypointTask.velocity_range = 10;
-    waypointTask.idle_velocity = 5;
+    waypointTask.velocity_range = 5; // Maximum speed joystick input(2~15m)
+    waypointTask.idle_velocity = 2; //Cruising Speed (without joystick input, no more than vel_cmd_range)
     waypointTask.action_on_finish = dji_sdk::MissionWaypointTask::FINISH_NO_ACTION;
     waypointTask.mission_exec_times = 1;
-    waypointTask.yaw_mode = dji_sdk::MissionWaypointTask::YAW_MODE_AUTO;
+    waypointTask.yaw_mode = dji_sdk::MissionWaypointTask::YAW_MODE_WAYPOINT;
     waypointTask.trace_mode = dji_sdk::MissionWaypointTask::TRACE_POINT;
-    waypointTask.action_on_rc_lost = dji_sdk::MissionWaypointTask::ACTION_AUTO;
+    waypointTask.action_on_rc_lost = dji_sdk::MissionWaypointTask::ACTION_FREE;
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
-}
-
-std::vector<DJI::OSDK::WayPointSettings> RiserInspection::DJI_waypoints(std::vector<std::vector<std::string>> wp_list) {
-    // Print the content of row by row on screen
-    int total_wp = wp_list.size(); // First row represent labels, first waypoint is 1 and last N;
-
-    for (int i = 0; i < wp_list.size(); i++) {
-        for (int j = 0; j < wp_list[0].size(); j++) {
-            if (j != wp_list[0].size() - 1) { std::cout << wp_list[i][j] << " , "; }
-            else { std::cout << wp_list[i][j] << std::endl; }
-            if (i > 0) {
-                if (j == 4) {
-                    if (wp_list[i][j] == "TRUE") { wp_list[i][j] = std::to_string(1); } else { wp_list[i][j] = std::to_string(0); }
-                }
-                double value = std::stod(wp_list[i][j]);
-                if (j != wp_list[0].size() - 1) { std::cout << "T - " << std::setprecision(11) << value << " , ";}
-                else{std::cout << "T - " << std::setprecision(11) << value <<std::endl;}
-
-            }
-        }
-    }
 }
