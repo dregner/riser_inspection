@@ -47,20 +47,9 @@
 
 //Class of Path Generate
 #include <path_generator.hh>
+#include <service_ack_type.hpp>
 
-typedef struct ServiceAck {
-    bool result;
-    int cmd_set;
-    int cmd_id;
-    unsigned int ack_data;
 
-    ServiceAck(bool res, int set, int id, unsigned int ack)
-            : result(res), cmd_set(set), cmd_id(id), ack_data(ack) {
-    }
-
-    ServiceAck() {
-    }
-} ServiceAck;
 
 class RiserInspection {
 private:
@@ -126,7 +115,6 @@ public:
     void
     position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk,
                          const geometry_msgs::QuaternionStampedConstPtr &msg_att);
-
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                              DJI::OSDK::MISSION_ACTION action);

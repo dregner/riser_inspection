@@ -247,21 +247,7 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
     // Come back home
     start_wp.index = csv_file[0].size()+1;
     wp_list.push_back(start_wp);
-
-
-    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
-             wp->longitude, wp->altitude);
-    waypoint.latitude = wp->latitude;
-    waypoint.longitude = wp->longitude;
-    waypoint.altitude = wp->altitude;
-    waypoint.damping_distance = 0;
-    waypoint.target_yaw = 0;
-    waypoint.target_gimbal_pitch = 0;
-    waypoint.turn_mode = 0;
-    waypoint.has_action = 0;
-    waypointTask.mission_waypoint.push_back(waypoint);
-
-
+    return wp_list;
 }
 
 
