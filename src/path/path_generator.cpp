@@ -157,7 +157,7 @@ std::string PathGenerate::getFolderName() {
 }
 
 void PathGenerate::setFolderName(std::string file_name) {
-    if (exists(file_name.c_str())) { file_path_ = file_name + "/"; }
+    if (exists(file_name.c_str())) { file_path_ = file_name; }
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 

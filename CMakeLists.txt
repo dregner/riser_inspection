@@ -75,7 +75,7 @@ target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_executable(stereo_calib src/stereo/stereo_calib.cpp)
 target_link_libraries(stereo_calib ${OpenCV_LIBS})
 
-add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp include/service_ack_type.hpp)
+add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator

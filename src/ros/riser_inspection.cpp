@@ -14,8 +14,8 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         ros::NodeHandle nh_private("~");
 
         std::string left_topic_, right_topic_, gps_topic_, rtk_topic_, attitude_topic_;
-        nh_private.param("gps_topic", gps_topic_, std::string("/dji_ros/gps_position"));
-        nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_ros/rtk_position"));
+        nh_private.param("gps_topic", gps_topic_, std::string("/dji_sdk/gps_position"));
+        nh_private.param("rtk_topic", rtk_topic_, std::string("/dji_sdk/rtk_position"));
         nh_private.param("attitude_topic", attitude_topic_, std::string("/dji_sdk/attitude"));
 
         gps_sub_.subscribe(nh, gps_topic_, 1);
@@ -25,7 +25,7 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         attitude_sub_.subscribe(nh, attitude_topic_, 1);
         ROS_INFO("Subscriber in M210 Attitude Topic: %s", attitude_topic_.c_str());
 
-        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_sub_, rtk_sub_));
+        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_sub_, rtk_sub_, attitude_sub_));
         sync_->registerCallback(boost::bind(&RiserInspection::position_subscribeCB, this, _1, _2, _3));
 
         ROS_INFO("Subscribe complet");
@@ -57,17 +57,20 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 
 bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                         riser_inspection::wpGenerate::Response &res) {
-    pathGenerator.setInitCoord(req.riser_distance, req.riser_diameter / 1000, lat0_, lon0_, alt0_, head0_);
+    ROS_INFO("Received Points");
+    pathGenerator.setInitCoord(req.riser_distance, float (req.riser_diameter / 1000), lat0_, lon0_, alt0_, head0_);
     pathGenerator.setInspectionParam(req.horizontal_number, req.vertical_number, req.delta_angle, req.delta_height);
+    ROS_INFO("Set initial values");
+
     try {
         pathGenerator.createInspectionPoints();
-        ROS_INFO("Waypoints created at %s%s", pathGenerator.getFolderName().c_str(),
+        ROS_INFO("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
+        return res.result = true;
     } catch (ros::Exception &e) {
         ROS_INFO("ROS error %s", e.what());
         return res.result = false;
     }
-    return res.result = true;
 }
 
 bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &req,
@@ -78,12 +81,12 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
         pathGenerator.setFileName(req.file_name);
     }
     if (pathGenerator.exists(req.file_path.c_str())) {
-        ROS_INFO("Waypoint folder changed %s%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
+        ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
         pathGenerator.setFolderName(req.file_path);
         res.result = true;
         return res.result;
     } else {
-        ROS_ERROR("Folder does not exist, file will be written in %s%s", pathGenerator.getFolderName().c_str(),
+        ROS_ERROR("Folder does not exist, file will be written in %s/%s", pathGenerator.getFolderName().c_str(),
                   pathGenerator.getFileName().c_str());
         res.result = false;
         return res.result;
@@ -93,7 +96,7 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
 bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                              riser_inspection::wpStartMission::Response &res) {
     if (req.start) {
-        ROS_INFO("Mission will be started using file from %s%s", pathGenerator.getFolderName().c_str(),
+        ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
         if (!askControlAuthority()) {
             ROS_INFO("Cannot get Authority Control");
@@ -262,7 +265,7 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     ROS_INFO("Creating Waypoints..\n");
     // Transform from CSV to DJI vector
     std::vector<std::vector<std::string>> filePathGen = pathGenerator.read_csv(
-            pathGenerator.getFolderName() + pathGenerator.getFileName(), ",");
+            pathGenerator.getFolderName()+"/" + pathGenerator.getFileName(), ",");
     std::vector<WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
 
         // Waypoint Mission: Upload the waypoints

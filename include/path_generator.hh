@@ -32,7 +32,7 @@ private:
 
     /// file name to store WP
     std::ofstream saved_wp_;
-    std::string file_path_ = "~/Documents";
+    std::string file_path_ = "/home/vant3d/Documents";
     std::string file_name_ = "pathGenerator_WP.csv";
     /// Initialize parameters
     int altitudeCount_ = 4; // number of horizontal path
