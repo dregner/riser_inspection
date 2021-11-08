@@ -50,6 +50,9 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
                                                  &RiserInspection::startMission_serviceCB, this);
         ROS_INFO("service riser_inspection/start_mission initialized");
 
+        take_photo_srv_client_ = nh.serviceClient<dji_sdk::CameraAction>("/dji_sdk/camera_action");
+        ROS_INFO("Created client for /dji_sdk/camera_action");
+
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
     }
@@ -58,7 +61,7 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                         riser_inspection::wpGenerate::Response &res) {
     ROS_INFO("Received Points");
-    pathGenerator.setInitCoord(req.riser_distance, float (req.riser_diameter / 1000), lat0_, lon0_, alt0_, head0_);
+    pathGenerator.setInitCoord(req.riser_distance, float(req.riser_diameter / 1000), lat0_, lon0_, alt0_, head0_);
     pathGenerator.setInspectionParam(req.horizontal_number, req.vertical_number, req.delta_angle, req.delta_height);
     ROS_INFO("Set initial values");
 
@@ -221,7 +224,7 @@ bool RiserInspection::askControlAuthority() {
 
 std::vector<DJI::OSDK::WayPointSettings>
 RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_file,
-                                 dji_sdk::MissionWaypointTask &waypointTask) {
+                                dji_sdk::MissionWaypointTask &waypointTask) {
     std::vector<DJI::OSDK::WayPointSettings> wp_list; // create a list (vector) containing waypoint structures
 
     // Push first waypoint as a initial position
@@ -248,7 +251,7 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
         wp_list.push_back(wp);
     }
     // Come back home
-    start_wp.index = csv_file[0].size()+1;
+    start_wp.index = csv_file[0].size() + 1;
     wp_list.push_back(start_wp);
     return wp_list;
 }
@@ -265,10 +268,10 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     ROS_INFO("Creating Waypoints..\n");
     // Transform from CSV to DJI vector
     std::vector<std::vector<std::string>> filePathGen = pathGenerator.read_csv(
-            pathGenerator.getFolderName()+"/" + pathGenerator.getFileName(), ",");
+            pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
     std::vector<WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
 
-        // Waypoint Mission: Upload the waypoints
+    // Waypoint Mission: Upload the waypoints
     ROS_INFO("Uploading Waypoints..\n");
     uploadWaypoints(generatedWP, responseTimeout, waypointTask);
 
@@ -286,6 +289,10 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
                       MISSION_ACTION::START)
             .result) {
         ROS_INFO("Mission start command sent successfully");
+        dji_sdk::CameraAction camera_action;
+        camera_action.request.camera_action = 0;
+        if (take_photo_srv_client_.call(camera_action)) { ROS_INFO("Took photo"); }
+        else { ROS_ERROR("Failed to call service /dji_sdk/camera_action"); }
     } else {
         ROS_WARN("Failed sending mission start command");
         return false;
@@ -294,23 +301,21 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     return true;
 }
 
-void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings>& wp_list,
-                int responseTimeout, dji_sdk::MissionWaypointTask& waypointTask)
-{
+void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
+                                      int responseTimeout, dji_sdk::MissionWaypointTask &waypointTask) {
     dji_sdk::MissionWaypoint waypoint;
     for (std::vector<WayPointSettings>::iterator wp = wp_list.begin();
-         wp != wp_list.end(); ++wp)
-    {
+         wp != wp_list.end(); ++wp) {
         ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
                  wp->longitude, wp->altitude);
-        waypoint.latitude            = wp->latitude;
-        waypoint.longitude           = wp->longitude;
-        waypoint.altitude            = wp->altitude;
-        waypoint.damping_distance    = 0;
-        waypoint.target_yaw          = 0;
+        waypoint.latitude = wp->latitude;
+        waypoint.longitude = wp->longitude;
+        waypoint.altitude = wp->altitude;
+        waypoint.damping_distance = 0;
+        waypoint.target_yaw = 0;
         waypoint.target_gimbal_pitch = 0;
-        waypoint.turn_mode           = 0;
-        waypoint.has_action          = 0;
+        waypoint.turn_mode = 0;
+        waypoint.has_action = 0;
         waypointTask.mission_waypoint.push_back(waypoint);
     }
 }
