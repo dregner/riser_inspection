@@ -24,19 +24,18 @@
 #include <message_filters/sync_policies/exact_time.h>
 #include <ignition/math/Pose3.hh>
 
-// Service from another node
-#include <ros/service_client.h>
-#include <std_srvs/SetBool.h>
 
-// DJI SDK includes
+/// DJI SDK includes
+// DJI ROS services msgs
 #include <dji_sdk/Activation.h>
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/MissionWpUpload.h>
 #include <dji_sdk/MissionWpAction.h>
+#include <dji_sdk/CameraAction.h>
+// DJI OSDK classes
 #include <djiosdk/dji_vehicle.hpp>
 #include <djiosdk/dji_telemetry.hpp>
-#include <dji_sdk/CameraAction.h>
 
 //Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
@@ -72,10 +71,9 @@ private:
     /// DJI Services
     ros::ServiceClient drone_activation_service;
     ros::ServiceClient sdk_ctrl_authority_service;
-    ros::ServiceClient drone_task_service;
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
-    ros::ServiceClient take_photo_srv_client_;
+    ros::ServiceClient take_photo_service;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix ptr_gps_position_;

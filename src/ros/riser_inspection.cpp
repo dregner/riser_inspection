@@ -50,7 +50,7 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
                                                  &RiserInspection::startMission_serviceCB, this);
         ROS_INFO("service riser_inspection/start_mission initialized");
 
-        take_photo_srv_client_ = nh.serviceClient<dji_sdk::CameraAction>("/dji_sdk/camera_action");
+        take_photo_service = nh.serviceClient<dji_sdk::CameraAction>("/dji_sdk/camera_action");
         ROS_INFO("Created client for /dji_sdk/camera_action");
 
     } catch (ros::Exception &e) {
@@ -260,57 +260,61 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
 bool RiserInspection::runWaypointMission(int responseTimeout) {
     ros::spinOnce();
 
-    // Waypoint Mission : Initialization
-    dji_sdk::MissionWaypointTask waypointTask;
-    setWaypointInitDefaults(waypointTask);
+
 
 
     ROS_INFO("Creating Waypoints..\n");
     // Transform from CSV to DJI vector
     std::vector<std::vector<std::string>> filePathGen = pathGenerator.read_csv(
             pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
-    std::vector<WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
+    std::vector<DJI::OSDK::WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
 
-    // Waypoint Mission: Upload the waypoints
-    ROS_INFO("Uploading Waypoints..\n");
-    uploadWaypoints(generatedWP, responseTimeout, waypointTask);
+
 
     // Waypoint Mission: Init mission
     ROS_INFO("Initializing Waypoint Mission..\n");
-    if (initWaypointMission(waypointTask).result) {
-        ROS_INFO("Waypoint upload command sent successfully");
-    } else {
-        ROS_WARN("Failed sending waypoint upload command");
-        return false;
+    for (int i = 0; i < generatedWP.size(); i++) {
+        // Waypoint Mission : Initialization
+        dji_sdk::MissionWaypointTask waypointTask;
+        setWaypointInitDefaults(waypointTask);
+        ROS_INFO("Uploading Waypoints..\n");
+        uploadWaypoints(generatedWP,
+                        i, waypointTask);
+        if (initWaypointMission(waypointTask).result) {
+            // Waypoint Mission: Upload the waypoints
+            ROS_INFO("Waypoint upload waypoint %i successfully", i);
+            // Waypoint Mission: Start
+            if (missionAction(DJI_MISSION_TYPE::WAYPOINT,
+                              MISSION_ACTION::START)
+                    .result) {
+                ROS_INFO("Mission start command sent successfully");
+                dji_sdk::CameraAction camera_action;
+                camera_action.request.camera_action = 0;
+                if (take_photo_service.call(camera_action)) { ROS_INFO("Took photo"); }
+                else { ROS_ERROR("Failed to call service /dji_sdk/camera_action"); }
+            } else {
+                ROS_WARN("Failed sending mission start command");
+                return false;
+            }
+        } else {
+            ROS_WARN("Failed sending waypoint upload command");
+            return false;
+        }
     }
 
-    // Waypoint Mission: Start
-    if (missionAction(DJI_MISSION_TYPE::WAYPOINT,
-                      MISSION_ACTION::START)
-            .result) {
-        ROS_INFO("Mission start command sent successfully");
-        dji_sdk::CameraAction camera_action;
-        camera_action.request.camera_action = 0;
-        if (take_photo_srv_client_.call(camera_action)) { ROS_INFO("Took photo"); }
-        else { ROS_ERROR("Failed to call service /dji_sdk/camera_action"); }
-    } else {
-        ROS_WARN("Failed sending mission start command");
-        return false;
-    }
 
     return true;
 }
 
 void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
-                                      int responseTimeout, dji_sdk::MissionWaypointTask &waypointTask) {
+                                      int wp_number, dji_sdk::MissionWaypointTask &waypointTask) {
     dji_sdk::MissionWaypoint waypoint;
-    for (std::vector<WayPointSettings>::iterator wp = wp_list.begin();
-         wp != wp_list.end(); ++wp) {
-        ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
-                 wp->longitude, wp->altitude);
-        waypoint.latitude = wp->latitude;
-        waypoint.longitude = wp->longitude;
-        waypoint.altitude = wp->altitude;
+    DJI::OSDK::WayPointSettings wp = wp_list.at(wp_number);
+        ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp.latitude,
+                 wp.longitude, wp.altitude);
+        waypoint.latitude = wp.latitude;
+        waypoint.longitude = wp.longitude;
+        waypoint.altitude = wp.altitude;
         waypoint.damping_distance = 0;
         waypoint.target_yaw = 0;
         waypoint.target_gimbal_pitch = 0;
