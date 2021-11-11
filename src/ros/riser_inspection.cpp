@@ -340,7 +340,7 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
 }
 
 void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask) {
-    waypointTask.velocity_range = 5; // Maximum speed joystick input(2~15m)
+    waypointTask.velocity_range = 2; // Maximum speed joystick input(2~15m)
     waypointTask.idle_velocity = 2; //Cruising Speed (without joystick input, no more than vel_cmd_range)
     waypointTask.action_on_finish = dji_sdk::MissionWaypointTask::FINISH_NO_ACTION;
     waypointTask.mission_exec_times = 1;
