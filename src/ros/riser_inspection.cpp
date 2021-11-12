@@ -327,12 +327,18 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
     wp->turnMode = 0;
     wp->hasAction = 0;
     wp->actionTimeLimit = 100;
-    wp->actionNumber = 0;
-    wp->actionRepeat = 0;
+    wp->actionNumber = 2;
+    wp->actionRepeat = 1;
     for (int i = 0; i < 16; ++i) {
         wp->commandList[i] = 0;
         wp->commandParameter[i] = 0;
     }
+    wp->commandList[0] = 1; // commandList[0] = WP_ACTION_STAY (ms)
+    wp->commandParameter[0] = 1000; // Set command to wait 1 second
+    wp->commandList[2] = 1; // commandList[2] = WP_ACTION_SIMPLE_SHOT
+    wp->commandParameter[2] = 1; // Set command to take photo
+//    wp->commandList[4] = 1; // commandList[4] = WP_ACTION_CRAFT_YAW
+//    wp->commandParameter[4] = 0; // Set command to take photo
 }
 
 void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask) {
