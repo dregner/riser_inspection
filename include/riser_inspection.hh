@@ -16,14 +16,11 @@
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Joy.h>
 #include <geometry_msgs/QuaternionStamped.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <message_filters/sync_policies/exact_time.h>
+#include <std_msgs/UInt8.h>
 #include <ignition/math/Pose3.hh>
-
+#include <tf/tf.h>
 
 /// DJI SDK includes
 // DJI ROS services msgs
@@ -33,9 +30,15 @@
 #include <dji_sdk/MissionWpUpload.h>
 #include <dji_sdk/MissionWpAction.h>
 #include <dji_sdk/CameraAction.h>
+// DJI SDK includes
+#include <dji_sdk/DroneTaskControl.h>
+#include <dji_sdk/SDKControlAuthority.h>
+#include <dji_sdk/QueryDroneVersion.h>
+#include <dji_sdk/SetLocalPosRef.h>
 // DJI OSDK classes
 #include <djiosdk/dji_vehicle.hpp>
 #include <djiosdk/dji_telemetry.hpp>
+#include "dji_sdk/dji_sdk.h"
 
 //Riser inspection includes
 #include <riser_inspection/wpGenerate.h>
@@ -57,11 +60,27 @@
 class RiserInspection {
 private:
     ros::NodeHandle nh_;
-    /// Filter to acquire same time GPS and RTK
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
-    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_sub_;
-    message_filters::Subscriber<geometry_msgs::QuaternionStamped> attitude_sub_;
 
+    int inbound_counter;
+    int outbound_counter;
+    int break_counter;
+
+    float target_offset_x;
+    float target_offset_y;
+    float target_offset_z;
+    float target_yaw;
+    uint8_t flight_status_ = 255;
+    uint8_t display_mode_  = 255;
+
+    sensor_msgs::NavSatFix start_gps_location;
+    geometry_msgs::Point start_local_position;
+
+    /// Subscribers
+    ros::Subscriber gps_sub_;
+    ros::Subscriber rtk_sub_;
+    ros::Subscriber attitude_sub_;
+    /// Publishers
+    ros::Publisher ctrlPosYawPub;
     /// Foler and File services
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv_;
@@ -70,22 +89,28 @@ private:
 
     /// DJI Services
     ros::ServiceClient drone_activation_service;
-    ros::ServiceClient sdk_ctrl_authority_service;
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
     ros::ServiceClient take_photo_service;
 
+    ros::ServiceClient set_local_pos_reference;
+    ros::ServiceClient sdk_ctrl_authority_service;
+    ros::ServiceClient drone_task_service;
+    ros::ServiceClient query_version_service;
+
     /// Messages from GPS, RTK and Attitude
-    sensor_msgs::NavSatFix ptr_gps_position_;
-    sensor_msgs::NavSatFix ptr_rtk_position_;
-    geometry_msgs::QuaternionStamped ptr_attitude_;
-    ignition::math::Quaterniond drone_rpy_;
+    //Start
+    sensor_msgs::NavSatFix start_gps_location_;
+    geometry_msgs::Point start_local_position_;
+    //Current
+    sensor_msgs::NavSatFix current_gps_;
+    sensor_msgs::NavSatFix current_rtk_;
+    geometry_msgs::Quaternion current_atti_;
+    geometry_msgs::Point current_local_pos_;
 
 
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
-            sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped> RiserInspectionPolicy;
-    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
-    boost::shared_ptr<Sync> sync_;
+    ignition::math::Quaterniond atti_Eul;
+
 
 
     /// Initial position to waypoint creates
@@ -109,6 +134,8 @@ public:
 
     void initServices(ros::NodeHandle &nh);
 
+    /// ROS Service CALLBACKS
+
     bool folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
     bool pathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
@@ -116,20 +143,44 @@ public:
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
 
-    void
-    position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk,
-                         const geometry_msgs::QuaternionStampedConstPtr &msg_att);
+
+
+    /// ROS Topic subscription CALLBACKS
+    void display_mode_callback(const std_msgs::UInt8::ConstPtr& msg);
+
+    void flight_status_callback(const std_msgs::UInt8::ConstPtr& msg);
+
+    void gps_callback(const sensor_msgs::NavSatFix::ConstPtr& msg);
+
+    void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr& msg);
+
+    void attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr& msg);
+
+    void local_position_callback(const geometry_msgs::PointStamped::ConstPtr& msg);
+
+    /// Functions from demo_flight_controller
+    void localOffsetFromGpsOffset(geometry_msgs::Vector3&  deltaNed,
+                                  sensor_msgs::NavSatFix& target,
+                                  sensor_msgs::NavSatFix& origin);
+
+    bool set_local_position();
+
+    bool obtain_control();
+
+    void step();
+
+    bool takeoff_land(int task);
+
+    bool monitoredTakeoff();
+
+    /// Function to mission waypoint
+
+//    bool askControlAuthority();
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                              DJI::OSDK::MISSION_ACTION action);
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
-
-    ServiceAck activate();
-
-    ServiceAck obtainCtrlAuthority();
-
-    bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
     createWayPoint(const std::vector<std::vector<std::string>> csv_file, dji_sdk::MissionWaypointTask &waypointTask);

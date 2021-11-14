@@ -25,6 +25,7 @@
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
+#define C_EARTH (double)6378137.0
 
 class PathGenerate {
 private:
