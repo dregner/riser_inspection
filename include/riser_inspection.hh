@@ -72,15 +72,14 @@ private:
     uint8_t flight_status_ = 255;
     uint8_t display_mode_  = 255;
 
-    sensor_msgs::NavSatFix start_gps_location;
-    geometry_msgs::Point start_local_position;
-
     /// Subscribers
     ros::Subscriber gps_sub_;
     ros::Subscriber rtk_sub_;
     ros::Subscriber attitude_sub_;
     /// Publishers
     ros::Publisher ctrlPosYawPub;
+    ros::Publisher ctrlBrakePub;
+
     /// Foler and File services
     ros::ServiceServer generate_pathway_srv_;
     ros::ServiceServer wp_folders_srv_;
@@ -100,8 +99,10 @@ private:
 
     /// Messages from GPS, RTK and Attitude
     //Start
-    sensor_msgs::NavSatFix start_gps_location_;
+    sensor_msgs::NavSatFix start_gps_;
+    geometry_msgs::Quaternion start_atti_;
     geometry_msgs::Point start_local_position_;
+
     //Current
     sensor_msgs::NavSatFix current_gps_;
     sensor_msgs::NavSatFix current_rtk_;
@@ -110,6 +111,7 @@ private:
 
 
     ignition::math::Quaterniond atti_Eul;
+    ignition::math::Quaterniond start_atti_eul
 
 
 

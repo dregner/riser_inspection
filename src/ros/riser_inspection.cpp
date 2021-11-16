@@ -20,7 +20,8 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
 
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic_, 10, &RiserInspection::gps_callback, this);
         rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic_, 10, &RiserInspection::rtk_callback, this);
-        attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic_, 10, &RiserInspection::attitude_callback, this);
+        attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic_, 10,
+                                                                       &RiserInspection::attitude_callback, this);
 
         ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
 
@@ -63,12 +64,18 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 bool RiserInspection::pathGen_serviceCB(riser_inspection::wpGenerate::Request &req,
                                         riser_inspection::wpGenerate::Response &res) {
     ROS_INFO("Received Points");
-    pathGenerator.setInitCoord(req.riser_distance, float(req.riser_diameter / 1000), lat0_, lon0_, alt0_, head0_);
+    start_gps_ = current_gps_;
+    start_atti_ = current_atti_;
+    start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
+
+    pathGenerator.setInitCoord(req.riser_distance, float(req.riser_diameter / 1000), start_gps_.latitude,
+                               start_gps_.longitude, start_gps_.altitude, start_atti_eul.Yaw());
     pathGenerator.setInspectionParam(req.horizontal_number, req.vertical_number, req.delta_angle, req.delta_height);
     ROS_INFO("Set initial values");
 
     try {
-        pathGenerator.createInspectionPoints();
+        /// csv_type: 1 - ugcs complete; 2 - ugcs EMU; 3 - UgCS TOP/BOTTOM; 4 - DJI
+        pathGenerator.createInspectionPoints(3);
         ROS_INFO("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
         return res.result = true;
@@ -103,10 +110,12 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     if (req.start) {
         ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
-        if (!askControlAuthority()) {
+
+        if (!obtain_control()) {
             ROS_INFO("Cannot get Authority Control");
             return res.result = false;
         } else {
+
             ROS_INFO("Starting Waypoint Mission");
 
 //            return res.result = runWaypointMission(100);
@@ -116,14 +125,13 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 }
 
 
-void RiserInspection::localOffsetFromGpsOffset(geometry_msgs::Vector3&  deltaNed,
-                         sensor_msgs::NavSatFix& target,
-                         sensor_msgs::NavSatFix& origin)
-{
+void RiserInspection::localOffsetFromGpsOffset(geometry_msgs::Vector3 &deltaNed,
+                                               sensor_msgs::NavSatFix &target,
+                                               sensor_msgs::NavSatFix &origin) {
     double deltaLon = target.longitude - origin.longitude;
     double deltaLat = target.latitude - origin.latitude;
 
-    deltaNed.y = DEG2RAD(deltaLat *  C_EARTH);
+    deltaNed.y = DEG2RAD(deltaLat * C_EARTH);
     deltaNed.x = DEG2RAD(deltaLon * C_EARTH * cos(DEG2RAD(target.latitude)));
     deltaNed.z = target.altitude - origin.altitude;
 }
@@ -135,11 +143,10 @@ void RiserInspection::localOffsetFromGpsOffset(geometry_msgs::Vector3&  deltaNed
  * handling. Note M100 flight status is different
  * from A3/N3 flight status.
  */
-bool RiserInspection::monitoredTakeoff()
-{
+bool RiserInspection::monitoredTakeoff() {
     ros::Time start_time = ros::Time::now();
 
-    if(!takeoff_land(dji_sdk::DroneTaskControl::Request::TASK_TAKEOFF)) {
+    if (!takeoff_land(dji_sdk::DroneTaskControl::Request::TASK_TAKEOFF)) {
         return false;
     }
 
@@ -154,11 +161,10 @@ bool RiserInspection::monitoredTakeoff()
         ros::spinOnce();
     }
 
-    if(ros::Time::now() - start_time > ros::Duration(5)) {
+    if (ros::Time::now() - start_time > ros::Duration(5)) {
         ROS_ERROR("Takeoff failed. Motors are not spinnning.");
         return false;
-    }
-    else {
+    } else {
         start_time = ros::Time::now();
         ROS_INFO("Motor Spinning ...");
         ros::spinOnce();
@@ -167,36 +173,34 @@ bool RiserInspection::monitoredTakeoff()
 
     // Step 1.2: Get in to the air
     while (flight_status_ != DJISDK::FlightStatus::STATUS_IN_AIR &&
-           (display_mode_ != DJISDK::DisplayMode::MODE_ASSISTED_TAKEOFF || display_mode_ != DJISDK::DisplayMode::MODE_AUTO_TAKEOFF) &&
+           (display_mode_ != DJISDK::DisplayMode::MODE_ASSISTED_TAKEOFF ||
+            display_mode_ != DJISDK::DisplayMode::MODE_AUTO_TAKEOFF) &&
            ros::Time::now() - start_time < ros::Duration(20)) {
         ros::Duration(0.01).sleep();
         ros::spinOnce();
     }
 
-    if(ros::Time::now() - start_time > ros::Duration(20)) {
+    if (ros::Time::now() - start_time > ros::Duration(20)) {
         ROS_ERROR("Takeoff failed. Aircraft is still on the ground, but the motors are spinning.");
         return false;
-    }
-    else {
+    } else {
         start_time = ros::Time::now();
         ROS_INFO("Ascending...");
         ros::spinOnce();
     }
 
     // Final check: Finished takeoff
-    while ( (display_mode_ == DJISDK::DisplayMode::MODE_ASSISTED_TAKEOFF || display_mode_ == DJISDK::DisplayMode::MODE_AUTO_TAKEOFF) &&
-            ros::Time::now() - start_time < ros::Duration(20)) {
+    while ((display_mode_ == DJISDK::DisplayMode::MODE_ASSISTED_TAKEOFF ||
+            display_mode_ == DJISDK::DisplayMode::MODE_AUTO_TAKEOFF) &&
+           ros::Time::now() - start_time < ros::Duration(20)) {
         ros::Duration(0.01).sleep();
         ros::spinOnce();
     }
 
-    if ( display_mode_ != DJISDK::DisplayMode::MODE_P_GPS || display_mode_ != DJISDK::DisplayMode::MODE_ATTITUDE)
-    {
+    if (display_mode_ != DJISDK::DisplayMode::MODE_P_GPS || display_mode_ != DJISDK::DisplayMode::MODE_ATTITUDE) {
         ROS_INFO("Successful takeoff!");
         start_time = ros::Time::now();
-    }
-    else
-    {
+    } else {
         ROS_ERROR("Takeoff finished, but the aircraft is in an unexpected mode. Please connect DJI GO.");
         return false;
     }
@@ -205,16 +209,14 @@ bool RiserInspection::monitoredTakeoff()
 }
 
 
-bool RiserInspection::takeoff_land(int task)
-{
+bool RiserInspection::takeoff_land(int task) {
     dji_sdk::DroneTaskControl droneTaskControl;
 
     droneTaskControl.request.task = task;
 
     drone_task_service.call(droneTaskControl);
 
-    if(!droneTaskControl.response.result)
-    {
+    if (!droneTaskControl.response.result) {
         ROS_ERROR("takeoff_land fail");
         return false;
     }
@@ -222,14 +224,12 @@ bool RiserInspection::takeoff_land(int task)
     return true;
 }
 
-bool RiserInspection::obtain_control()
-{
+bool RiserInspection::obtain_control() {
     dji_sdk::SDKControlAuthority authority;
-    authority.request.control_enable=1;
+    authority.request.control_enable = 1;
     sdk_ctrl_authority_service.call(authority);
 
-    if(!authority.response.result)
-    {
+    if (!authority.response.result) {
         ROS_ERROR("obtain control failed!");
         return false;
     }
@@ -238,44 +238,43 @@ bool RiserInspection::obtain_control()
 }
 
 
-void RiserInspection::step()
-{
+void RiserInspection::step() {
     static int info_counter = 0;
-    geometry_msgs::Vector3     localOffset;
+    geometry_msgs::Vector3 localOffset;
 
-    float speedFactor         = 2;
-    float yawThresholdInDeg   = 2;
+    float speedFactor = 2;
+    float yawThresholdInDeg = 2;
 
     float xCmd, yCmd, zCmd;
 
-    localOffsetFromGpsOffset(localOffset, current_gps_, start_gps_location);
+    localOffsetFromGpsOffset(localOffset, current_gps_, start_gps_);
 
     double xOffsetRemaining = target_offset_x - localOffset.x;
     double yOffsetRemaining = target_offset_y - localOffset.y;
     double zOffsetRemaining = target_offset_z - localOffset.z;
 
-    double yawDesiredRad     = DEG2RAD(target_yaw);
+    double yawDesiredRad = DEG2RAD(target_yaw);
     double yawThresholdInRad = DEG2RAD(yawThresholdInDeg);
-    double yawInRad          = atti_Eul.Yaw();
+    double yawInRad = atti_Eul.Yaw();
 
     info_counter++;
-    if(info_counter > 25)
-    {
+    if (info_counter > 25) {
         info_counter = 0;
-        ROS_INFO("-----x=%f, y=%f, z=%f, yaw=%f ...", localOffset.x,localOffset.y, localOffset.z,yawInRad);
-        ROS_INFO("+++++dx=%f, dy=%f, dz=%f, dyaw=%f ...", xOffsetRemaining,yOffsetRemaining, zOffsetRemaining,yawInRad - yawDesiredRad);
+        ROS_INFO("-----x=%f, y=%f, z=%f, yaw=%f ...", localOffset.x, localOffset.y, localOffset.z, yawInRad);
+        ROS_INFO("+++++dx=%f, dy=%f, dz=%f, dyaw=%f ...", xOffsetRemaining, yOffsetRemaining, zOffsetRemaining,
+                 yawInRad - yawDesiredRad);
     }
     if (abs(xOffsetRemaining) >= speedFactor)
-        xCmd = (xOffsetRemaining>0) ? speedFactor : -1 * speedFactor;
+        xCmd = (xOffsetRemaining > 0) ? speedFactor : -1 * speedFactor;
     else
         xCmd = xOffsetRemaining;
 
     if (abs(yOffsetRemaining) >= speedFactor)
-        yCmd = (yOffsetRemaining>0) ? speedFactor : -1 * speedFactor;
+        yCmd = (yOffsetRemaining > 0) ? speedFactor : -1 * speedFactor;
     else
         yCmd = yOffsetRemaining;
 
-    zCmd = start_local_position.z + target_offset_z;
+    zCmd = start_local_position_.z + target_offset_z;
 
 
     /*!
@@ -283,19 +282,16 @@ void RiserInspection::step()
      *         and call it done, else we send normal command
      */
 
-    if (break_counter > 50)
-    {
+    if (break_counter > 50) {
         ROS_INFO("##### Route %d finished....", state);
         finished = true;
         return;
-    }
-    else if(break_counter > 0)
-    {
+    } else if (break_counter > 0) {
         sensor_msgs::Joy controlVelYawRate;
-        uint8_t flag = (DJISDK::VERTICAL_VELOCITY   |
+        uint8_t flag = (DJISDK::VERTICAL_VELOCITY |
                         DJISDK::HORIZONTAL_VELOCITY |
-                        DJISDK::YAW_RATE            |
-                        DJISDK::HORIZONTAL_GROUND   |
+                        DJISDK::YAW_RATE |
+                        DJISDK::HORIZONTAL_GROUND |
                         DJISDK::STABLE_ENABLE);
         controlVelYawRate.axes.push_back(0);
         controlVelYawRate.axes.push_back(0);
@@ -306,8 +302,7 @@ void RiserInspection::step()
         ctrlBrakePub.publish(controlVelYawRate);
         break_counter++;
         return;
-    }
-    else //break_counter = 0, not in break stage
+    } else //break_counter = 0, not in break stage
     {
         sensor_msgs::Joy controlPosYaw;
 
@@ -322,30 +317,24 @@ void RiserInspection::step()
     if (std::abs(xOffsetRemaining) < 0.5 &&
         std::abs(yOffsetRemaining) < 0.5 &&
         std::abs(zOffsetRemaining) < 0.5 &&
-        std::abs(yawInRad - yawDesiredRad) < yawThresholdInRad)
-    {
+        std::abs(yawInRad - yawDesiredRad) < yawThresholdInRad) {
         //! 1. We are within bounds; start incrementing our in-bound counter
-        inbound_counter ++;
-    }
-    else
-    {
-        if (inbound_counter != 0)
-        {
+        inbound_counter++;
+    } else {
+        if (inbound_counter != 0) {
             //! 2. Start incrementing an out-of-bounds counter
-            outbound_counter ++;
+            outbound_counter++;
         }
     }
 
     //! 3. Reset withinBoundsCounter if necessary
-    if (outbound_counter > 10)
-    {
+    if (outbound_counter > 10) {
         ROS_INFO("##### Route %d: out of bounds, reset....", state);
-        inbound_counter  = 0;
+        inbound_counter = 0;
         outbound_counter = 0;
     }
 
-    if (inbound_counter > 50)
-    {
+    if (inbound_counter > 50) {
         ROS_INFO("##### Route %d start break....", state);
         break_counter = 1;
     }
@@ -434,13 +423,14 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
     // Push first waypoint as a initial position
     DJI::OSDK::WayPointSettings start_wp;
     setWaypointDefaults(&start_wp);
-    start_wp.latitude = lat0_;
-    start_wp.longitude = lon0_;
-    start_wp.altitude = alt0_;
-    start_wp.yaw = head0_;
-    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", lat0_, lon0_, alt0_, head0_);
+    start_wp.latitude = start_gps_.latitude;
+    start_wp.longitude = start_gps_.longitude;
+    start_wp.altitude = start_gps_.altitude;
+    start_wp.yaw = start_atti_eul.Yaw();
+    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gps_.latitude, start_gps_.longitude,
+             start_gps_.altitude, start_atti_eul.Yaw());
     start_wp.index = 0;
-    wp_list.push_back(start_wp);
+    wp_list.push_back(start_wp);dji_sdk::
 
 
     for (int k = 1; k < csv_file[0].size(); k++) {

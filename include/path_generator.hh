@@ -55,7 +55,7 @@ private:
     double lon0_ = -48.520547;  // Starting longitude
     float alt0_ = 3;              // Starting altitude
     float head0_ = 30;            // Starting heading
-
+    int waypoint_counter = 1;
     /// Internal parameters
     int Y_North_ZeroDegrees_ = -90;
     bool firstTime;
@@ -76,9 +76,11 @@ public:
 
     void findCenterHeading(int deltaAngle, int angleCount);
 
-    void createInspectionPoints();
+    void createInspectionPoints(int csv_type);
 
     void csv_save_ugcs(double *wp_array, int wp_number); // Used to export on UgCS
+
+    void csv_save_ugcs_simplify(double *wp_array); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
