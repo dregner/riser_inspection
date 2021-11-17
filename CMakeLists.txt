@@ -24,17 +24,14 @@ if (OpenCV_FOUND)
     add_definitions(-DOPEN_CV_INSTALLED)
     set(OPEN_CV_3_3_0_INSTALLED TRUE)
 
-    find_package(OpenCVContribImgProc REQUIRED)
-
-    find_package(OpenCVViz REQUIRED)
 else()
     find_package(OpenCV QUIET )
     if (OpenCV_FOUND)
-        message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system, depth percpetion demo requires 3.3.0+ for better experience")
+        message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system")
         message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
         add_definitions(-DOPEN_CV_INSTALLED)
     else()
-        message(STATUS "Did not find OpenCV in the system, image data is inside RecvContainer as raw data")
+        message(STATUS "Did not find OpenCV in the system")
     endif()
 endif()
 
@@ -89,14 +86,19 @@ target_link_libraries(path_generator ${catkin_LIBRARIES} )
 add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp )
 target_link_libraries(read_file ${catkin_LIBRARIES} )
 
-if (OPEN_CV_3_3_0_INSTALLED AND FOUND_OPENCV_VIZ AND darknet_ros_FOUND AND FOUND_ADVANCED_SENSING)
-    message(STATUS "Found OpenCV ${OpenCV_VERSION}, Viz3d, darknet_ros, and advanced sensing module, depth percpetion demo will be compiled")
+if (OPEN_CV_3_3_0_INSTALLED)
 
 	add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
-	target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
+	target_link_libraries(stereo_disparity ${catkin_LIBRARIES}
+            ${DJIOSDK_LIBRARIES}
+            ${OpenCV_LIBS}
+            )
 
 	add_executable(stereo_calib src/stereo/stereo_calib.cpp)
-	target_link_libraries(stereo_calib ${OpenCV_LIBS})
+	target_link_libraries(stereo_calib ${catkin_LIBRARIES}
+            ${DJIOSDK_LIBRARIES}
+            ${OpenCV_LIBS}
+            )
 endif()
 add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
