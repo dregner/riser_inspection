@@ -87,15 +87,9 @@ private:
 
 
     /// DJI Services
-    ros::ServiceClient drone_activation_service;
-    ros::ServiceClient waypoint_action_service;
-    ros::ServiceClient waypoint_upload_service;
-    ros::ServiceClient take_photo_service;
-
     ros::ServiceClient set_local_pos_reference;
     ros::ServiceClient sdk_ctrl_authority_service;
     ros::ServiceClient drone_task_service;
-    ros::ServiceClient query_version_service;
 
     /// Messages from GPS, RTK and Attitude
     //Start
@@ -111,15 +105,7 @@ private:
 
 
     ignition::math::Quaterniond atti_Eul;
-    ignition::math::Quaterniond start_atti_eul
-
-
-
-    /// Initial position to waypoint creates
-    double lat0_ = -27.605299;  // Starting latitude
-    double lon0_ = -48.520547;  // Starting longitude
-    float alt0_ = 3;              // Starting altitude
-    float head0_ = 30;            // Starting heading
+    ignition::math::Quaterniond start_atti_eul;
 
     std::ofstream saved_wp_;
 
