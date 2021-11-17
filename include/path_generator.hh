@@ -84,7 +84,7 @@ public:
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_EMU(double *wp_array, int row, int wp_number);
+    void csv_save_ugcs_EMU(double *wp_array, int wp_number);
 
     void openFile();
 

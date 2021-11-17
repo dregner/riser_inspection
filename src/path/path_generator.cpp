@@ -86,7 +86,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int row, int wp_number) {
+void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int wp_number) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
         firstTime = false;

@@ -9,7 +9,7 @@ int main() {
     riser.setFolderName("/home/vant3d/Documents");
     riser.setInitCoord(5, 0.3, 46.775450, 8.345125, 1839.8 + 10, 74.2);
     riser.setInspectionParam(5, 4, 15, -0.3);
-    riser.createInspectionPoints();
+    riser.createInspectionPoints(1);
 
     std::cout << "Directory " << riser.getFolderName() << "/" << riser.getFileName() << std::endl;
     std::cout << "Finished" << std::endl;
