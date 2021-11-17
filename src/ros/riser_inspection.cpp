@@ -53,6 +53,19 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
         take_photo_srv_client_ = nh.serviceClient<dji_sdk::CameraAction>("/dji_sdk/camera_action");
         ROS_INFO("Created client for /dji_sdk/camera_action");
 
+        // ROS stuff
+        waypoint_upload_service = nh.serviceClient<dji_sdk::MissionWpUpload>(
+                "dji_sdk/mission_waypoint_upload");
+        waypoint_action_service = nh.serviceClient<dji_sdk::MissionWpAction>(
+                "dji_sdk/mission_waypoint_action");
+        drone_activation_service =
+                nh.serviceClient<dji_sdk::Activation>("dji_sdk/activation");
+        sdk_ctrl_authority_service = nh.serviceClient<dji_sdk::SDKControlAuthority>(
+                "dji_sdk/sdk_control_authority");
+        drone_task_service =
+                nh.serviceClient<dji_sdk::DroneTaskControl>("dji_sdk/drone_task_control");
+
+
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
     }
@@ -197,12 +210,6 @@ RiserInspection::initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask)
 }
 
 bool RiserInspection::askControlAuthority() {
-    if (activate().result) {
-        ROS_INFO("Activated successfully");
-    } else {
-        ROS_WARN("Failed activation");
-        return false;
-    }
 
     // Obtain Control Authority
     ServiceAck ack = obtainCtrlAuthority();
