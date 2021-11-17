@@ -1,43 +1,63 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 2.8)
 project(riser_inspection)
+
+# Add module path for <name>.cmake conf files
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
+
 
 find_package(ignition-math4)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib cv_bridge
-        image_transport roscpp rospy actionlib_msgs sensor_msgs
-        std_msgs message_generation message_filters nav_msgs dji_sdk)
+find_package(catkin REQUIRED COMPONENTS cv_bridge
+        roscpp rospy sensor_msgs
+        message_generation message_filters dji_sdk)
 
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_STANDARD 14)
-
-
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV 3.3.0 QUIET)
 if (OpenCV_FOUND)
-    message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system")
+    message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system, will use it for depth perception sample")
     message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
-    include_directories( ${OpenCV_INCLUDE_DIRS})
+    add_definitions(-DOPEN_CV_INSTALLED)
+    set(OPEN_CV_3_3_0_INSTALLED TRUE)
+
+    find_package(OpenCVContribImgProc REQUIRED)
+
+    find_package(OpenCVViz REQUIRED)
+else()
+    find_package(OpenCV QUIET )
+    if (OpenCV_FOUND)
+        message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system, depth percpetion demo requires 3.3.0+ for better experience")
+        message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
+        add_definitions(-DOPEN_CV_INSTALLED)
+    else()
+        message(STATUS "Did not find OpenCV in the system, image data is inside RecvContainer as raw data")
+    endif()
 endif()
+
 
 
 find_package(CUDA QUIET)
 if(CUDA_FOUND)
-    message(STATUS "Found ${CUDA_VERSION} CUDA installed in the system, will use it for depth perception sample")
+    message(STATUS "Found ${CUDA_VERSION} CUDA installed in the system")
     message(STATUS " - Includes: ${CUDA_INCLUDE_DIRS}")
     add_definitions(-DUSE_GPU)
 elseif()
     message(STATUS "Did not find CUDA in the system")
 endif()
 
+
+## Compile as C++11, supported in ROS Kinetic and newer
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_STANDARD 14)
+
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################
+
 
 
 add_service_files(FILES wpGenerate.srv wpFolders.srv wpStartMission.srv)
@@ -47,7 +67,7 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES riser_inspection
-        CATKIN_DEPENDS roscpp sensor_msgs std_msgs actionlib_msgs dji_sdk dji_sdk_node)
+        CATKIN_DEPENDS roscpp sensor_msgs std_msgs dji_sdk)
 
 
 ## Specify additional locations of header files
@@ -56,8 +76,8 @@ include_directories(
         include
         ${catkin_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIRS}
-        ${DJIOSDK_INCLUDE_DIRS}
-        ${dji_sdk_node_INCLUDE_DIRS})
+        ${DJIOSDK_INCLUDE_DIRS})
+        #${dji_sdk_node_INCLUDE_DIRS})
 
 set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 
@@ -69,12 +89,15 @@ target_link_libraries(path_generator ${catkin_LIBRARIES} )
 add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp )
 target_link_libraries(read_file ${catkin_LIBRARIES} )
 
-add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
-target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
+if (OPEN_CV_3_3_0_INSTALLED AND FOUND_OPENCV_VIZ AND darknet_ros_FOUND AND FOUND_ADVANCED_SENSING)
+    message(STATUS "Found OpenCV ${OpenCV_VERSION}, Viz3d, darknet_ros, and advanced sensing module, depth percpetion demo will be compiled")
 
-add_executable(stereo_calib src/stereo/stereo_calib.cpp)
-target_link_libraries(stereo_calib ${OpenCV_LIBS})
+	add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
+	target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+	add_executable(stereo_calib src/stereo/stereo_calib.cpp)
+	target_link_libraries(stereo_calib ${OpenCV_LIBS})
+endif()
 add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
