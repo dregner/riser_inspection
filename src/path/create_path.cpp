@@ -7,9 +7,10 @@ int main() {
     PathGenerate riser;
     std::cout << "Creating waypoint pathway" << std::endl;
     riser.setFolderName("/home/vant3d/Documents");
-    riser.setInitCoord( 46.775450, 8.345125, 1839.8 + 10, 74.2);
     riser.setInspectionParam(5, 300, 5, 4, 15, -300);
-    riser.createInspectionPoints();
+    riser.setInitCoord( 46.775450, 8.345125, 1839.8 + 10, 74.2);
+
+    riser.createInspectionPoints(1);
 
     std::cout << "Directory " << riser.getFolderName() << "/" << riser.getFileName() << std::endl;
     std::cout << "Finished" << std::endl;

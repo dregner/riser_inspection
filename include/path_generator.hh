@@ -25,6 +25,7 @@
 
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
+#define C_EARTH (double)6378137.0
 
 class PathGenerate {
 private:
@@ -54,7 +55,7 @@ private:
     double lon0_ = -48.520547;  // Starting longitude
     float alt0_ = 3;              // Starting altitude
     float head0_ = 30;            // Starting heading
-
+    int waypoint_counter = 1;
     /// Internal parameters
     int Y_North_ZeroDegrees_ = -90;
     bool firstTime;
@@ -63,9 +64,9 @@ public:
 
     ~PathGenerate();
 
-    void setInitCoord( double lat, double lon, float alt, float head);
+    void setInitCoord(double lat, double lon, float alt, float head);
 
-    void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, int deltaALT);
+    void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT);
 
     void inspectionAngle2Heading(float polar_angle);
 
@@ -75,13 +76,15 @@ public:
 
     void findCenterHeading(int deltaAngle, int angleCount);
 
-    void createInspectionPoints();
+    void createInspectionPoints(int csv_type);
 
     void csv_save_ugcs(double *wp_array, int wp_number); // Used to export on UgCS
 
+    void csv_save_ugcs_simplify(double *wp_array); // Used to export on UgCS
+
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_EMU(double *wp_array, int row, int wp_number);
+    void csv_save_ugcs_EMU(double *wp_array, int wp_number);
 
     void openFile();
 

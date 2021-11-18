@@ -11,17 +11,16 @@ PathGenerate::~PathGenerate() {
 
 }
 
-void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, int deltaALT) {
+void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT) {
+    d_cyl_ = d_cyl;
+    dist_ = dist;
     angleCount_ = n_h;
     altitudeCount_ = n_v;
     deltaAngle_ = deltaDEG;
-    deltaAltitude_ = deltaALT/1000;
-    d_cyl_ = d_cyl;
-    dist_ = dist;
+    deltaAltitude_ = deltaALT;
 }
 
 void PathGenerate::setInitCoord( double lat, double lon, float alt, float head) {
-
     lon0_ = lon;
     lat0_ = lat;
     alt0_ = alt;
@@ -69,7 +68,25 @@ void PathGenerate::csv_save_ugcs(double *wp_array, int wp_number) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int row, int wp_number) {
+void PathGenerate::csv_save_ugcs_simplify(double *wp_array) {
+    if (firstTime == true) {
+        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
+        firstTime = false;
+    }
+    if (saved_wp_.is_open()) {
+        if (abs(wp_array[2] - alt0_) < 0.001 || abs(wp_array[2] - (alt0_ + deltaAltitude_ * (altitudeCount_ - 1)))) {
+            saved_wp_ << waypoint_counter << ","
+                      << std::setprecision(10) << wp_array[0] << ","
+                      << std::setprecision(10) << wp_array[1] << ","
+                      << std::setprecision(10) << wp_array[2] << ","
+                      << std::setprecision(10) << wp_array[3] << ","
+                      << 0.1 << "," << 2 << ",TRUE" << "\n";
+            waypoint_counter++;
+        }
+    }
+}
+
+void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int wp_number) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
         firstTime = false;
@@ -99,7 +116,7 @@ void PathGenerate::findCenterHeading(int deltaAngle, int angleCount) {
     else { start_angle_ = (int) (-angleCount * round(angleCount / 2)); }
 }
 
-void PathGenerate::createInspectionPoints() {
+void PathGenerate::createInspectionPoints(int csv_type) {
     openFile();
     findCenterHeading(deltaAngle_, angleCount_);
     int count_wp = 1;
@@ -120,10 +137,23 @@ void PathGenerate::createInspectionPoints() {
             /// Introduce values to waypoint array to be printed
             cart2gcs(altitude);
             /// Export to CSV file
-//            csv_save_wp(waypoint_, sizeof(waypoint_) / sizeof(waypoint_[0]));
-            csv_save_ugcs(waypoint_, count_wp);
-            if (k == altitudeCount_ -
-                     1) { initial = altitude; } // set initial altitude value when finished de vertical movement.
+            switch (csv_type) {
+                case 1:
+                    csv_save_ugcs(waypoint_, count_wp);
+                    std::cout << "Saved on UgCS struct" << std::endl;
+                    case 2:
+                        csv_save_ugcs_EMU(waypoint_, count_wp);
+                    std::cout << "Saved on UgCS struct emulation" << std::endl;
+                case 3:
+                    csv_save_ugcs_simplify(waypoint_);
+                    std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                case 4:
+                    csv_save_DJI(waypoint_, count_wp);
+                    std::cout << "Saved on DJI struct" << std::endl;
+            }
+            if (k == altitudeCount_ - 1) {
+                initial = altitude;
+            } // set initial altitude value when finished de vertical movement.
             count_wp += 1;
         }
     }
@@ -162,7 +192,8 @@ void PathGenerate::setFolderName(std::string file_name) {
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 
-std::vector<std::vector<std::string> > PathGenerate::read_csv(const std::string& filepath, const std::string& delimeter) {
+std::vector<std::vector<std::string> >
+PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
     std::ifstream file(filepath);
     std::vector<std::vector<std::string> > dataList;
     std::string line;
