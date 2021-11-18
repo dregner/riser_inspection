@@ -131,7 +131,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gnss_.latitude,
-                               start_gnss_.longitude, (float) start_gnss_.altitude, (float)start_atti_eul.Yaw());
+                               start_gnss_.longitude, (float) 10, (float)start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -252,7 +252,7 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>>& csv
     setWaypointDefaults(&start_wp);
     start_wp.latitude = start_gnss_.latitude;
     start_wp.longitude = start_gnss_.longitude;
-    start_wp.altitude = (float) start_gnss_.altitude;
+    start_wp.altitude = (float) 10;
     start_wp.yaw = (int16_t) start_atti_eul.Yaw();
     ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gnss_.latitude,
              start_gnss_.longitude, start_gnss_.altitude, start_atti_eul.Yaw());
