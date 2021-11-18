@@ -150,13 +150,13 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         return res.result = false;
     }
 
-    ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
-             pathGenerator.getFileName().c_str());
-    if (!askControlAuthority()) {
-        ROS_WARN("Cannot get Authority Control");
-        return res.result = false;
-    } else {
-        ROS_INFO("Starting Waypoint Mission");
+//    ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
+//             pathGenerator.getFileName().c_str());
+//    if (!askControlAuthority()) {
+//        ROS_WARN("Cannot get Authority Control");
+//        return res.result = false;
+//    } else {
+//        ROS_INFO("Starting Waypoint Mission");
 
         if(runWaypointMission(100)){
             ROS_INFO("Finished");
@@ -166,7 +166,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
             return false;
         }
     }
-}
+//}
 // message_filter
 /*
 
@@ -283,11 +283,11 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
         /// "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture"
         DJI::OSDK::WayPointSettings wp;
         setWaypointDefaults(&wp);
-        wp.index = std::stod(csv_file[0][k]);
-        wp.latitude = std::stod(csv_file[1][k]);
-        wp.longitude = std::stod(csv_file[2][k]);
-        wp.altitude = std::stod(csv_file[3][k]);
-        wp.yaw = std::stod(csv_file[4][k]);
+        wp.index = std::stod(csv_file[k][0]);
+        wp.latitude = std::stod(csv_file[k][1]);
+        wp.longitude = std::stod(csv_file[k][2]);
+        wp.altitude = std::stod(csv_file[k][3]);
+        wp.yaw = std::stod(csv_file[k][4]);
         wp_list.push_back(wp);
     }
     // Come back home
