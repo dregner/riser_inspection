@@ -14,22 +14,12 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         ros::NodeHandle nh_private("~");
 
         std::string gps_topic, rtk_topic, attitude_topic;
-        int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
         // Topic parameters
         nh_private.param("gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
         nh_private.param("rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
 
-        // Path generate parameters
-        nh_private.param("riser_distance", riser_distance, 5);
-        nh_private.param("riser_diameter", riser_diameter, 5);
-        nh_private.param("horizontal_points", h_points, 5);
-        nh_private.param("vertical_points", v_points, 5);
-        nh_private.param("delta_H", delta_h, 5);
-        nh_private.param("delta_V", delta_v, 5);
 
-        // Setting intial parameters to create waypoints
-        pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,(float) delta_v);
 
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
         rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>( rtk_topic, 1, &RiserInspection::rtk_callback, this);
@@ -124,9 +114,23 @@ bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &re
 bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                              riser_inspection::wpStartMission::Response &res) {
     ROS_INFO("Received Points");
+
+    // Path generate parameters
+    int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
+
+    nh_.param("riser_distance", riser_distance, 5);
+    nh_.param("riser_diameter", riser_diameter, 5);
+    nh_.param("horizontal_points", h_points, 5);
+    nh_.param("vertical_points", v_points, 5);
+    nh_.param("delta_H", delta_h, 5);
+    nh_.param("delta_V", delta_v, 5);
+
+    // Setting intial parameters to create waypoints
+    pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,(float) delta_v);
     // Define where comes the initial value
     if (!req.use_rtk) { start_gnss_ = current_gps_; }
     else { start_gnss_ = current_rtk_; }
+
     start_atti_ = current_atti_;
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
