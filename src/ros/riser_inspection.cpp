@@ -32,15 +32,15 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         pathGenerator.setInspectionParam(riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v);
 
 
-        gps_sub_.subscribe(nh, gps_topic, 1);
+        gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
         ROS_INFO("Subscriber in M210 GPS Topic: %s", gps_topic.c_str());
-        rtk_sub_.subscribe(nh, rtk_topic, 1);
+        rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>( rtk_topic, 1, &RiserInspection::rtk_callback, this);
         ROS_INFO("Subscriber in M210 RTK Topic: %s", rtk_topic.c_str());
-        attitude_sub_.subscribe(nh, attitude_topic, 1);
+        attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>( attitude_topic, 1, &RiserInspection::atti_callback, this);
         ROS_INFO("Subscriber in M210 Attitude Topic: %s", attitude_topic.c_str());
 
-        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_sub_, rtk_sub_, attitude_sub_));
-        sync_->registerCallback(boost::bind(&RiserInspection::position_subscribeCB, this, _1, _2, _3));
+//        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_sub_, rtk_sub_, attitude_sub_));
+//        sync_->registerCallback(boost::bind(&RiserInspection::position_subscribeCB, this, _1, _2, _3));
 
         ROS_INFO("Subscribe complet");
     } catch (ros::Exception &e) {
@@ -94,6 +94,7 @@ bool RiserInspection::ask_control(riser_inspection::askControl::Request &req, ri
         sdkAuthority.request.control_enable = 1;
         sdk_ctrl_authority_service.call(sdkAuthority);
         if (!sdkAuthority.response.result) {
+            ROS_WARN("Ask authority for second time");
             ROS_WARN("ack.info: set = %i id = %i", sdkAuthority.response.cmd_set,
                      sdkAuthority.response.cmd_id);
             ROS_WARN("ack.data: %i", sdkAuthority.response.ack_data);
@@ -102,7 +103,7 @@ bool RiserInspection::ask_control(riser_inspection::askControl::Request &req, ri
             ROS_INFO("ack.info: set = %i id = %i", sdkAuthority.response.cmd_set,
                      sdkAuthority.response.cmd_id);
             ROS_INFO("ack.data: %i", sdkAuthority.response.ack_data);
-            return sdkAuthority.response.result;
+             return true;
         }
     }
 }
@@ -166,6 +167,8 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         }
     }
 }
+// message_filter
+/*
 
 void RiserInspection::position_subscribeCB(const sensor_msgs::NavSatFix::ConstPtr &msg_gps,
                                            const sensor_msgs::NavSatFix::ConstPtr &msg_rtk,
@@ -176,8 +179,18 @@ void RiserInspection::position_subscribeCB(const sensor_msgs::NavSatFix::ConstPt
     current_atti_euler_.Set(current_atti_.w, current_atti_.x, current_atti_.y,
                             current_atti_.z);
 }
+*/
 
-
+void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
+    current_gps_ = *msg;
+}
+void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
+    current_rtk_ = *msg;
+}
+void RiserInspection::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
+    current_atti_ = msg->quaternion;
+    current_atti_euler_.Set(current_atti_.w, current_atti_.x, current_atti_.y, current_atti_.z);
+}
 ServiceAck
 RiserInspection::missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                                DJI::OSDK::MISSION_ACTION action) {

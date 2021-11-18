@@ -59,9 +59,9 @@ class RiserInspection {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_;
-    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk_sub_;
-    message_filters::Subscriber<geometry_msgs::QuaternionStamped> attitude_sub_;
+    ros::Subscriber gps_sub_;
+    ros::Subscriber rtk_sub_;
+    ros::Subscriber attitude_sub_;
 
     /// Foler and File services
     ros::ServiceServer ask_control_service;
@@ -109,9 +109,15 @@ public:
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
 
-    void
+   /* void
     position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk,
                          const geometry_msgs::QuaternionStampedConstPtr &msg_att);
+*/
+    void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
+
+    void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
+
+    void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                              DJI::OSDK::MISSION_ACTION action);
