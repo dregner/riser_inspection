@@ -63,9 +63,9 @@ public:
 
     ~PathGenerate();
 
-    void setInitCoord(double dist, float d_cyl, double lat, double lon, float alt, float head);
+    void setInitCoord( double lat, double lon, float alt, float head);
 
-    void setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT);
+    void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, int deltaALT);
 
     void inspectionAngle2Heading(float polar_angle);
 

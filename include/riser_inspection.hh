@@ -39,7 +39,7 @@
 #include <dji_sdk/CameraAction.h>
 
 //Riser inspection includes
-#include <riser_inspection/wpGenerate.h>
+#include <riser_inspection/askControl.h>
 #include <riser_inspection/wpFolders.h>
 #include <riser_inspection/wpStartMission.h>
 
@@ -64,24 +64,25 @@ private:
     message_filters::Subscriber<geometry_msgs::QuaternionStamped> attitude_sub_;
 
     /// Foler and File services
-    ros::ServiceServer generate_pathway_srv_;
-    ros::ServiceServer wp_folders_srv_;
-    ros::ServiceServer start_mission_srv_;
+    ros::ServiceServer ask_control_service;
+    ros::ServiceServer wp_folders_service;
+    ros::ServiceServer start_mission_service;
 
 
     /// DJI Services
     ros::ServiceClient drone_activation_service;
     ros::ServiceClient sdk_ctrl_authority_service;
-    ros::ServiceClient drone_task_service;
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
-    ros::ServiceClient take_photo_srv_client_;
 
     /// Messages from GPS, RTK and Attitude
-    sensor_msgs::NavSatFix ptr_gps_position_;
-    sensor_msgs::NavSatFix ptr_rtk_position_;
-    geometry_msgs::QuaternionStamped ptr_attitude_;
-    ignition::math::Quaterniond drone_rpy_;
+    sensor_msgs::NavSatFix current_gps_;
+    sensor_msgs::NavSatFix current_rtk_;
+    geometry_msgs::Quaternion current_atti_;
+    ignition::math::Quaterniond current_atti_euler_;
+    sensor_msgs::NavSatFix start_gnss_;
+    geometry_msgs::Quaternion start_atti_;
+    ignition::math::Quaterniond start_atti_eul;
 
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
@@ -89,19 +90,9 @@ private:
     typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
     boost::shared_ptr<Sync> sync_;
 
-
-    /// Initial position to waypoint creates
-    double lat0_ = -27.605299;  // Starting latitude
-    double lon0_ = -48.520547;  // Starting longitude
-    float alt0_ = 3;              // Starting altitude
-    float head0_ = 30;            // Starting heading
-
-    std::ofstream saved_wp_;
-
     PathGenerate pathGenerator;
 
-    bool firstTime;
-    bool node_start_ = true; // a variable used to indentify the start of node to get initial position
+    bool use_rtk;
 public:
     RiserInspection();
 
@@ -113,7 +104,7 @@ public:
 
     bool folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
-    bool pathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
+    bool ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res);
 
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
@@ -127,14 +118,10 @@ public:
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
 
-    ServiceAck activate();
-
-    ServiceAck obtainCtrlAuthority();
-
     bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
-    createWayPoint(const std::vector<std::vector<std::string>> csv_file, dji_sdk::MissionWaypointTask &waypointTask);
+    createWayPoint(std::vector<std::vector<std::string>> csv_file, dji_sdk::MissionWaypointTask &waypointTask);
 
     void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list, int responseTimeout,
                          dji_sdk::MissionWaypointTask &waypointTask);

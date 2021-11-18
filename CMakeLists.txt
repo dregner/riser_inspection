@@ -57,7 +57,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 
 
-add_service_files(FILES wpGenerate.srv wpFolders.srv wpStartMission.srv)
+add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 

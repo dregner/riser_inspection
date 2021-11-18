@@ -11,16 +11,17 @@ PathGenerate::~PathGenerate() {
 
 }
 
-void PathGenerate::setInspectionParam(int n_h, int n_v, int deltaDEG, float deltaALT) {
+void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, int deltaALT) {
     angleCount_ = n_h;
     altitudeCount_ = n_v;
     deltaAngle_ = deltaDEG;
-    deltaAltitude_ = deltaALT;
-}
-
-void PathGenerate::setInitCoord(double dist, float d_cyl, double lat, double lon, float alt, float head) {
+    deltaAltitude_ = deltaALT/1000;
     d_cyl_ = d_cyl;
     dist_ = dist;
+}
+
+void PathGenerate::setInitCoord( double lat, double lon, float alt, float head) {
+
     lon0_ = lon;
     lat0_ = lat;
     alt0_ = alt;
