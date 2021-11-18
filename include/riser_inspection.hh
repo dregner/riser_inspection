@@ -17,11 +17,6 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Imu.h>
 #include <geometry_msgs/QuaternionStamped.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <message_filters/sync_policies/exact_time.h>
 #include <ignition/math/Pose3.hh>
 
 // Service from another node
@@ -85,10 +80,6 @@ private:
     ignition::math::Quaterniond start_atti_eul;
 
 
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
-            sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped> RiserInspectionPolicy;
-    typedef message_filters::Synchronizer<RiserInspectionPolicy> Sync;
-    boost::shared_ptr<Sync> sync_;
 
     PathGenerate pathGenerator;
 
@@ -109,10 +100,6 @@ public:
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
 
-   /* void
-    position_subscribeCB(const sensor_msgs::NavSatFixConstPtr &msg_gps, const sensor_msgs::NavSatFixConstPtr &msg_rtk,
-                         const geometry_msgs::QuaternionStampedConstPtr &msg_att);
-*/
     void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
@@ -127,7 +114,7 @@ public:
     bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
-    createWayPoint(std::vector<std::vector<std::string>> csv_file, dji_sdk::MissionWaypointTask &waypointTask);
+    createWayPoint(const std::vector<std::vector<std::string>>& csv_file, dji_sdk::MissionWaypointTask &waypointTask);
 
     void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list, int responseTimeout,
                          dji_sdk::MissionWaypointTask &waypointTask);

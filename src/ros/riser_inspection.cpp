@@ -7,7 +7,7 @@ RiserInspection::RiserInspection() {
 
 }
 
-RiserInspection::~RiserInspection() {}
+RiserInspection::~RiserInspection() = default;
 
 void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
     try {
@@ -29,18 +29,11 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         nh_private.param("delta_V", delta_v, 5);
 
         // Setting intial parameters to create waypoints
-        pathGenerator.setInspectionParam(riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v);
-
+        pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,(float) delta_v);
 
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
-        ROS_INFO("Subscriber in M210 GPS Topic: %s", gps_topic.c_str());
         rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>( rtk_topic, 1, &RiserInspection::rtk_callback, this);
-        ROS_INFO("Subscriber in M210 RTK Topic: %s", rtk_topic.c_str());
         attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>( attitude_topic, 1, &RiserInspection::atti_callback, this);
-        ROS_INFO("Subscriber in M210 Attitude Topic: %s", attitude_topic.c_str());
-
-//        sync_.reset(new Sync(RiserInspectionPolicy(10), gps_sub_, rtk_sub_, attitude_sub_));
-//        sync_->registerCallback(boost::bind(&RiserInspection::position_subscribeCB, this, _1, _2, _3));
 
         ROS_INFO("Subscribe complet");
     } catch (ros::Exception &e) {
@@ -111,11 +104,11 @@ bool RiserInspection::ask_control(riser_inspection::askControl::Request &req, ri
 bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &req,
                                         riser_inspection::wpFolders::Response &res) {
 
-    if (req.file_name.c_str() != NULL) {
+    if (req.file_name.c_str() != nullptr) {
         ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
         pathGenerator.setFileName(req.file_name);
     }
-    if (pathGenerator.exists(req.file_path.c_str())) {
+    if (pathGenerator.exists(req.file_path)) {
         ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
         pathGenerator.setFolderName(req.file_path);
         res.result = true;
@@ -138,7 +131,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gnss_.latitude,
-                               start_gnss_.longitude, start_gnss_.altitude, start_atti_eul.Yaw());
+                               start_gnss_.longitude, (float) start_gnss_.altitude, (float)start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -149,15 +142,13 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         ROS_WARN("ROS error %s", e.what());
         return res.result = false;
     }
-
-//    ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
-//             pathGenerator.getFileName().c_str());
-//    if (!askControlAuthority()) {
-//        ROS_WARN("Cannot get Authority Control");
-//        return res.result = false;
-//    } else {
-//        ROS_INFO("Starting Waypoint Mission");
-
+    ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
+             pathGenerator.getFileName().c_str());
+    if (!askControlAuthority()) {
+        ROS_WARN("Cannot get Authority Control");
+        return res.result = false;
+    } else {
+        ROS_INFO("Starting Waypoint Mission");
         if(runWaypointMission(100)){
             ROS_INFO("Finished");
             return true;
@@ -167,19 +158,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         }
     }
 //}
-// message_filter
-/*
 
-void RiserInspection::position_subscribeCB(const sensor_msgs::NavSatFix::ConstPtr &msg_gps,
-                                           const sensor_msgs::NavSatFix::ConstPtr &msg_rtk,
-                                           const geometry_msgs::QuaternionStamped::ConstPtr &msg_att) {
-    current_atti_ = msg_att->quaternion; // Quaternion w x y z from drone's attitude
-    current_gps_ = *msg_gps; // lat lon alt from GPS sensor
-    current_rtk_ = *msg_rtk; // lat lon alt from RTK sensor
-    current_atti_euler_.Set(current_atti_.w, current_atti_.x, current_atti_.y,
-                            current_atti_.z);
-}
-*/
 
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps_ = *msg;
@@ -208,6 +187,8 @@ RiserInspection::missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                     missionWpAction.response.cmd_set,
                     missionWpAction.response.cmd_id,
                     missionWpAction.response.ack_data};
+        case HOTPOINT:
+            break;
     }
 }
 
@@ -262,7 +243,7 @@ bool RiserInspection::askControlAuthority() {
 }
 
 std::vector<DJI::OSDK::WayPointSettings>
-RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_file,
+RiserInspection::createWayPoint(const std::vector<std::vector<std::string>>& csv_file,
                                 dji_sdk::MissionWaypointTask &waypointTask) {
     std::vector<DJI::OSDK::WayPointSettings> wp_list; // create a list (vector) containing waypoint structures
 
@@ -271,8 +252,8 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
     setWaypointDefaults(&start_wp);
     start_wp.latitude = start_gnss_.latitude;
     start_wp.longitude = start_gnss_.longitude;
-    start_wp.altitude = start_gnss_.altitude;
-    start_wp.yaw = start_atti_eul.Yaw();
+    start_wp.altitude = (float) start_gnss_.altitude;
+    start_wp.yaw = (int16_t) start_atti_eul.Yaw();
     ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gnss_.latitude,
              start_gnss_.longitude, start_gnss_.altitude, start_atti_eul.Yaw());
     start_wp.index = 0;
@@ -283,11 +264,11 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
         /// "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture"
         DJI::OSDK::WayPointSettings wp;
         setWaypointDefaults(&wp);
-        wp.index = std::stod(csv_file[k][0]);
+        wp.index = std::stoi(csv_file[k][0]);
         wp.latitude = std::stod(csv_file[k][1]);
         wp.longitude = std::stod(csv_file[k][2]);
-        wp.altitude = std::stod(csv_file[k][3]);
-        wp.yaw = std::stod(csv_file[k][4]);
+        wp.altitude = std::stof(csv_file[k][3]);
+        wp.yaw = std::stof(csv_file[k][4]);
         wp_list.push_back(wp);
     }
     // Come back home
@@ -340,7 +321,7 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
 void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
                                       int responseTimeout, dji_sdk::MissionWaypointTask &waypointTask) {
     dji_sdk::MissionWaypoint waypoint;
-    for (std::vector<WayPointSettings>::iterator wp = wp_list.begin();
+    for (auto wp = wp_list.begin();
          wp != wp_list.end(); ++wp) {
         ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
                  wp->longitude, wp->altitude);

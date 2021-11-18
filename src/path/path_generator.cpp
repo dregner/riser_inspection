@@ -12,15 +12,15 @@ PathGenerate::~PathGenerate() {
 }
 
 void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT) {
-    d_cyl_ = d_cyl;
+    d_cyl_ = d_cyl / 1000;
     dist_ = dist;
     angleCount_ = n_h;
     altitudeCount_ = n_v;
     deltaAngle_ = deltaDEG;
-    deltaAltitude_ = deltaALT;
+    deltaAltitude_ = deltaALT / 1000;
 }
 
-void PathGenerate::setInitCoord( double lat, double lon, float alt, float head) {
+void PathGenerate::setInitCoord(double lat, double lon, float alt, float head) {
     lon0_ = lon;
     lat0_ = lat;
     alt0_ = alt;
@@ -140,16 +140,24 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             switch (csv_type) {
                 case 1:
                     csv_save_ugcs(waypoint_, count_wp);
-                    std::cout << "Saved on UgCS struct" << std::endl;
-                    case 2:
-                        csv_save_ugcs_EMU(waypoint_, count_wp);
-                    std::cout << "Saved on UgCS struct emulation" << std::endl;
+                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
+                    break;
+                case 2:
+                    csv_save_ugcs_EMU(waypoint_, count_wp);
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct emulation" << std::endl;
+                    }
+                    break;
                 case 3:
                     csv_save_ugcs_simplify(waypoint_);
-                    std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                    }
+                    break;
                 case 4:
                     csv_save_DJI(waypoint_, count_wp);
-                    std::cout << "Saved on DJI struct" << std::endl;
+                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
+                    break;
             }
             if (k == altitudeCount_ - 1) {
                 initial = altitude;
