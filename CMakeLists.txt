@@ -86,7 +86,7 @@ target_link_libraries(path_generator ${catkin_LIBRARIES} )
 add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp )
 target_link_libraries(read_file ${catkin_LIBRARIES} )
 
-if (OPEN_CV_3_3_0_INSTALLED)
+if (NOT OPEN_CV_3_3_0_INSTALLED)
 
 	add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
 	target_link_libraries(stereo_disparity ${catkin_LIBRARIES}

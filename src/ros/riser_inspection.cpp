@@ -270,11 +270,11 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> csv_
         /// "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture"
         DJI::OSDK::WayPointSettings wp;
         setWaypointDefaults(&wp);
-        wp.index = std::stoi(csv_file[0][k]);
+        wp.index = std::stod(csv_file[0][k]);
         wp.latitude = std::stod(csv_file[1][k]);
         wp.longitude = std::stod(csv_file[2][k]);
         wp.altitude = std::stod(csv_file[3][k]);
-        wp.yaw = std::stoi(csv_file[4][k]);
+        wp.yaw = std::stod(csv_file[4][k]);
         wp_list.push_back(wp);
     }
     // Come back home
