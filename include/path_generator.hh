@@ -80,7 +80,7 @@ public:
 
     void csv_save_ugcs(double *wp_array, int wp_number); // Used to export on UgCS
 
-    void csv_save_ugcs_simplify(double *wp_array); // Used to export on UgCS
+    void csv_save_ugcs_simplify(double *wp_array, float altitude); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 

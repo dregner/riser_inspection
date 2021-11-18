@@ -68,13 +68,13 @@ void PathGenerate::csv_save_ugcs(double *wp_array, int wp_number) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_simplify(double *wp_array) {
+void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
     }
     if (saved_wp_.is_open()) {
-        if (abs(wp_array[2] - alt0_) < 0.001 || abs(wp_array[2] - (alt0_ + deltaAltitude_ * (altitudeCount_ - 1)))) {
+        if (std::abs(alt0_- altitude ) < 0.01 || std::abs( (alt0_ + deltaAltitude_ * ((float) altitudeCount_ - 1))-altitude  ) < 0.01) {
             saved_wp_ << waypoint_counter << ","
                       << std::setprecision(10) << wp_array[0] << ","
                       << std::setprecision(10) << wp_array[1] << ","
@@ -126,7 +126,7 @@ void PathGenerate::createInspectionPoints(int csv_type) {
         if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
         for (int k = 0; k < altitudeCount_; k++) {
             /// Set altitude of this waypoint
-            float altitude = initial + (float) k * vertical * deltaAltitude_;
+            float altitude = initial - (float) k * vertical * deltaAltitude_;
             /// Set Polar values
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
@@ -149,7 +149,7 @@ void PathGenerate::createInspectionPoints(int csv_type) {
                     }
                     break;
                 case 3:
-                    csv_save_ugcs_simplify(waypoint_);
+                    csv_save_ugcs_simplify(waypoint_, altitude);
                     if (count_wp >= angleCount_ * altitudeCount_) {
                         std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
                     }

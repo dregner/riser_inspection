@@ -135,7 +135,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     ROS_INFO("Set initial values");
 
     try {
-        pathGenerator.createInspectionPoints(1);
+        pathGenerator.createInspectionPoints(3);
         ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
     } catch (ros::Exception &e) {
