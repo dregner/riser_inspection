@@ -144,10 +144,10 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     }
     ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
              pathGenerator.getFileName().c_str());
-//    if (!askControlAuthority()) {
-//        ROS_WARN("Cannot get Authority Control");
-//        return res.result = false;
-//    } else {
+    if (!askControlAuthority()) {
+        ROS_WARN("Cannot get Authority Control");
+        return res.result = false;
+    } else {
         ROS_INFO("Starting Waypoint Mission");
         if(runWaypointMission(100)){
             ROS_INFO("Finished");
@@ -156,7 +156,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
             ROS_WARN("Error");
             return false;
         }
-//    }
+    }
 }
 
 
