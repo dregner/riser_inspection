@@ -355,7 +355,7 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
         wp->commandParameter[i] = 0;
     }
     wp->commandList[0] = 1; // commandList[0] = WP_ACTION_STAY (ms)
-    wp->commandParameter[0] = 1000; // Set command to wait 1 second
+    wp->commandParameter[0] = 2000; // Set command to wait 1 second
     wp->commandList[2] = 1; // commandList[2] = WP_ACTION_SIMPLE_SHOT
     wp->commandParameter[2] = 1; // Set command to take photo
 //    wp->commandList[4] = 1; // commandList[4] = WP_ACTION_CRAFT_YAW
@@ -363,8 +363,8 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
 }
 
 void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask) {
-    waypointTask.velocity_range = 5; // Maximum speed joystick input(2~15m)
-    waypointTask.idle_velocity = 2; //Cruising Speed (without joystick input, no more than vel_cmd_range)
+    waypointTask.velocity_range = 1.5; // Maximum speed joystick input(2~15m)
+    waypointTask.idle_velocity = 0.5; //Cruising Speed (without joystick input, no more than vel_cmd_range)
     waypointTask.action_on_finish = dji_sdk::MissionWaypointTask::FINISH_NO_ACTION;
     waypointTask.mission_exec_times = 1;
     waypointTask.yaw_mode = dji_sdk::MissionWaypointTask::YAW_MODE_WAYPOINT;

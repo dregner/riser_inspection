@@ -70,7 +70,7 @@ public:
 
     void inspectionAngle2Heading(float polar_angle);
 
-    void polar2cart(double r, double alpha);
+    void polar2cart(double r, double alpha, double r_ref, double alpha_ref);
 
     void cart2gcs(double altitude);
 
@@ -84,7 +84,7 @@ public:
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_EMU(double *wp_array, int wp_number);
+    void csv_save_ugcs_XY(double *wp_array, int wp_number);
 
     void openFile();
 

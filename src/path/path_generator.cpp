@@ -36,9 +36,9 @@ void PathGenerate::inspectionAngle2Heading(float polar_angle) {
     waypoint_[3] = heading;
 }
 
-void PathGenerate::polar2cart(double r, double alpha) {
-    xy_array_[0] = r * cos(DEG2RAD(alpha));
-    xy_array_[1] = r * sin(DEG2RAD(alpha));
+void PathGenerate::polar2cart(double r, double alpha, double r_ref, double alpha_ref) {
+    xy_array_[0] = r * cos(DEG2RAD(alpha)) - (r_ref * cos(DEG2RAD(alpha_ref)));
+    xy_array_[1] = r * sin(DEG2RAD(alpha)) - (r_ref * sin(DEG2RAD(alpha_ref)));
 
 }
 
@@ -74,7 +74,8 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
         firstTime = false;
     }
     if (saved_wp_.is_open()) {
-        if (std::abs(alt0_- altitude ) < 0.01 || std::abs( (alt0_ + deltaAltitude_ * ((float) altitudeCount_ - 1))-altitude  ) < 0.01) {
+        if (std::abs(alt0_ - altitude) < 0.01 ||
+            std::abs((alt0_ + deltaAltitude_ * ((float) altitudeCount_ - 1)) - altitude) < 0.01) {
             saved_wp_ << waypoint_counter << ","
                       << std::setprecision(10) << wp_array[0] << ","
                       << std::setprecision(10) << wp_array[1] << ","
@@ -86,7 +87,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_EMU(double *wp_array, int wp_number) {
+void PathGenerate::csv_save_ugcs_XY(double *wp_array, int wp_number) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
         firstTime = false;
@@ -133,85 +134,85 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             inspectionAngle2Heading((float) polar_array_[1]);
             polar_array_[1] -= +head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
             /// Convert Polar to Cartesian
-            polar2cart(polar_array_[0], polar_array_[1]);
+            polar2cart(polar_array_[0], polar_array_[1], dist_ + d_cyl_ / 2, -(head0_ + 90));
             /// Introduce values to waypoint array to be printed
             cart2gcs(altitude);
             /// Export to CSV file
             switch (csv_type) {
                 case 1:
                     csv_save_ugcs(waypoint_, count_wp);
-                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
-                    break;
+                if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
+                break;
                 case 2:
-                    csv_save_ugcs_EMU(waypoint_, count_wp);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct emulation" << std::endl;
-                    }
-                    break;
+                    csv_save_ugcs_XY(xy_array_, count_wp);
+                if (count_wp >= angleCount_ * altitudeCount_) {
+                    std::cout << "Saved on UgCS struct emulation" << std::endl;
+                }
+                break;
                 case 3:
                     csv_save_ugcs_simplify(waypoint_, altitude);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
-                    }
-                    break;
+                if (count_wp >= angleCount_ * altitudeCount_) {
+                    std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                }
+                break;
                 case 4:
                     csv_save_DJI(waypoint_, count_wp);
-                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
-                    break;
+                if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
+                break;
             }
             if (k == altitudeCount_ - 1) {
                 initial = altitude;
             } // set initial altitude value when finished de vertical movement.
             count_wp += 1;
+            }
         }
+        closeFile();
     }
-    closeFile();
-}
 
-void PathGenerate::openFile() {
-    std::string slash = "/";
-    saved_wp_.open(file_path_ + slash + file_name_);
-}
-
-void PathGenerate::closeFile() {
-    saved_wp_.close();
-}
-
-bool PathGenerate::exists(const std::string &name) {
-    struct stat buffer;
-    return (stat(name.c_str(), &buffer) == 0);
-}
-
-void PathGenerate::setFileName(std::string file_name) {
-    file_name_ = file_name;
-}
-
-std::string PathGenerate::getFileName() {
-
-    return file_name_;
-}
-
-std::string PathGenerate::getFolderName() {
-    return file_path_;
-}
-
-void PathGenerate::setFolderName(std::string file_name) {
-    if (exists(file_name.c_str())) { file_path_ = file_name; }
-    else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
-}
-
-std::vector<std::vector<std::string> >
-PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
-    std::ifstream file(filepath);
-    std::vector<std::vector<std::string> > dataList;
-    std::string line;
-    // Iterate through each line and split the content using delimeter
-    while (getline(file, line)) {
-        std::vector<std::string> vec;
-        boost::algorithm::split(vec, line, boost::is_any_of(delimeter));
-        dataList.push_back(vec);
+    void PathGenerate::openFile() {
+        std::string slash = "/";
+        saved_wp_.open(file_path_ + slash + file_name_);
     }
-    // Close the File
-    file.close();
-    return dataList;
-}
+
+    void PathGenerate::closeFile() {
+        saved_wp_.close();
+    }
+
+    bool PathGenerate::exists(const std::string &name) {
+        struct stat buffer;
+        return (stat(name.c_str(), &buffer) == 0);
+    }
+
+    void PathGenerate::setFileName(std::string file_name) {
+        file_name_ = file_name;
+    }
+
+    std::string PathGenerate::getFileName() {
+
+        return file_name_;
+    }
+
+    std::string PathGenerate::getFolderName() {
+        return file_path_;
+    }
+
+    void PathGenerate::setFolderName(std::string file_name) {
+        if (exists(file_name.c_str())) { file_path_ = file_name; }
+        else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
+    }
+
+    std::vector<std::vector<std::string> >
+    PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
+        std::ifstream file(filepath);
+        std::vector<std::vector<std::string> > dataList;
+        std::string line;
+        // Iterate through each line and split the content using delimeter
+        while (getline(file, line)) {
+            std::vector<std::string> vec;
+            boost::algorithm::split(vec, line, boost::is_any_of(delimeter));
+            dataList.push_back(vec);
+        }
+        // Close the File
+        file.close();
+        return dataList;
+    }
