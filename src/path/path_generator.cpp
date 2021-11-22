@@ -11,6 +11,11 @@ PathGenerate::~PathGenerate() {
 
 }
 
+void PathGenerate::reset(){
+	firstTime = true;
+}
+
+
 void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT) {
     d_cyl_ = d_cyl / 1000;
     dist_ = dist;
@@ -53,13 +58,14 @@ void PathGenerate::cart2gcs(double altitude) {
     waypoint_[2] = altitude;
 }
 
-void PathGenerate::csv_save_ugcs(double *wp_array, int wp_number) {
+void PathGenerate::csv_save_ugcs(double *wp_array) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
+	waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << wp_number << ","
+        saved_wp_ << waypoint_counter << ","
                   << std::setprecision(10) << wp_array[0] << ","
                   << std::setprecision(10) << wp_array[1] << ","
                   << std::setprecision(10) << wp_array[2] << ","
@@ -72,6 +78,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
+	waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
         if (std::abs(alt0_ - altitude) < 0.01 ||
@@ -87,13 +94,14 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_XY(double *wp_array, int wp_number) {
+void PathGenerate::csv_save_ugcs_XY(double *wp_array) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
         firstTime = false;
+	waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << wp_number << ","
+        saved_wp_ << waypoint_counter << ","
                   << std::setprecision(10) << wp_array[0] << ","
                   << std::setprecision(10) << wp_array[1] << ","
                   << std::setprecision(10) << wp_array[2] << ","
@@ -140,11 +148,11 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             /// Export to CSV file
             switch (csv_type) {
                 case 1:
-                    csv_save_ugcs(waypoint_, count_wp);
+                    csv_save_ugcs(waypoint_);
                 if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
                 break;
                 case 2:
-                    csv_save_ugcs_XY(xy_array_, count_wp);
+                    csv_save_ugcs_XY(xy_array_);
                 if (count_wp >= angleCount_ * altitudeCount_) {
                     std::cout << "Saved on UgCS struct emulation" << std::endl;
                 }
@@ -201,10 +209,10 @@ void PathGenerate::createInspectionPoints(int csv_type) {
         else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
     }
 
-    std::vector<std::vector<std::string> >
+    std::vector<std::vector<std::string>>
     PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
         std::ifstream file(filepath);
-        std::vector<std::vector<std::string> > dataList;
+        std::vector<std::vector<std::string>> dataList;
         std::string line;
         // Iterate through each line and split the content using delimeter
         while (getline(file, line)) {

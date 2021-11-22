@@ -65,6 +65,8 @@ public:
     ~PathGenerate();
 
     void setInitCoord(double lat, double lon, float alt, float head);
+    
+    void reset();
 
     void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT);
 
@@ -78,13 +80,13 @@ public:
 
     void createInspectionPoints(int csv_type);
 
-    void csv_save_ugcs(double *wp_array, int wp_number); // Used to export on UgCS
+    void csv_save_ugcs(double *wp_array); // Used to export on UgCS
 
     void csv_save_ugcs_simplify(double *wp_array, float altitude); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_XY(double *wp_array, int wp_number);
+    void csv_save_ugcs_XY(double *wp_array);
 
     void openFile();
 

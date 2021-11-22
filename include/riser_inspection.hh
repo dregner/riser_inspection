@@ -69,9 +69,11 @@ private:
     ros::ServiceClient sdk_ctrl_authority_service;
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
+    ros::ServiceClient camera_action_service;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps_;
+    sensor_msgs::NavSatFix old_gps_;
     sensor_msgs::NavSatFix current_rtk_;
     geometry_msgs::Quaternion current_atti_;
     ignition::math::Quaterniond current_atti_euler_;
@@ -83,7 +85,8 @@ private:
 
     PathGenerate pathGenerator;
 
-    bool use_rtk;
+    bool use_rtk, doing_mission;
+
 public:
     RiserInspection();
 
@@ -105,6 +108,8 @@ public:
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
+
+    bool takePicture();
 
     ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
                              DJI::OSDK::MISSION_ACTION action);
