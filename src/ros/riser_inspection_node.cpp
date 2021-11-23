@@ -1,5 +1,5 @@
 #include <iostream>
-#include <riser_inspection.hh>
+#include <riser_inspection_flight_control.hh>
 #include <path_generator.hh>
 
 int main(int argc, char **argv) {
