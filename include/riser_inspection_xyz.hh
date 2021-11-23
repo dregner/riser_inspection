@@ -65,6 +65,7 @@ private:
     ros::Subscriber gpsSub;
     ros::Subscriber rtkSub;
     ros::Subscriber attiSub;
+    ros::Subscriber localPosSub;
     /// node Publishers
     ros::Publisher ctrlPosYawPub;
     ros::Publisher ctrlBrakePub;
@@ -75,7 +76,6 @@ private:
     ros::ServiceClient drone_activation_service;
     ros::ServiceClient set_local_pos_reference;
     ros::ServiceClient sdk_ctrl_authority_service;
-    ros::ServiceClient drone_task_service;
     ros::ServiceClient camera_action_service;
     /// Messages from GPS, RTK and Attitude
     //Start
@@ -134,9 +134,9 @@ public:
 
     void step();
 
-    void setTarget(float x, float y, float z, float yaw);
+    void reset();
 
-    /// Function to mission waypoint
+    void setTarget(float x, float y, float z, float yaw);
 };
 
 #endif // RISER_INSPECTION_H
