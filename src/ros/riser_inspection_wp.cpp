@@ -136,14 +136,14 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     // Define where comes the initial value
-    if (!req.use_rtk) { start_gnss_ = current_gps_; }
-    else { start_gnss_ = current_rtk_; }
+    if (!req.use_rtk) { start_gps_location = current_gps_; }
+    else { start_gps_location = current_rtk_; }
 
     start_atti_ = current_atti_;
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
-    pathGenerator.setInitCoord(start_gnss_.latitude,
-                               start_gnss_.longitude, (float) 10, (float) start_atti_eul.Yaw());
+    pathGenerator.setInitCoord(start_gps_location.latitude,
+                               start_gps_location.longitude, (float) 10, (float) start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -284,12 +284,12 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv
     // Push first waypoint as a initial position
     DJI::OSDK::WayPointSettings start_wp;
     setWaypointDefaults(&start_wp);
-    start_wp.latitude = start_gnss_.latitude;
-    start_wp.longitude = start_gnss_.longitude;
+    start_wp.latitude = start_gps_location.latitude;
+    start_wp.longitude = start_gps_location.longitude;
     start_wp.altitude = (float) 10;
     start_wp.yaw = (int16_t) start_atti_eul.Yaw();
-    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gnss_.latitude,
-             start_gnss_.longitude, start_gnss_.altitude, start_atti_eul.Yaw());
+    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gps_location.latitude,
+             start_gps_location.longitude, start_gps_location.altitude, start_atti_eul.Yaw());
     start_wp.index = 0;
     wp_list.push_back(start_wp);
 

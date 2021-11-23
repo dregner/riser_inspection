@@ -77,7 +77,7 @@ private:
     sensor_msgs::NavSatFix current_rtk_;
     geometry_msgs::Quaternion current_atti_;
     ignition::math::Quaterniond current_atti_euler_;
-    sensor_msgs::NavSatFix start_gnss_;
+    sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::Quaternion start_atti_;
     ignition::math::Quaterniond start_atti_eul;
 

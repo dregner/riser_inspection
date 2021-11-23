@@ -26,6 +26,7 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         attiSub = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic, 1,
                                                                  &RiserInspection::attitude_callback, this);
         ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
+        ctrlBrakePub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_generic", 10);
 
         ROS_INFO("Subscribe completed");
     } catch (ros::Exception &e) {
@@ -92,14 +93,16 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     // Define where comes the initial value
-    if (!req.use_rtk) { start_gnss_ = current_gps_; }
-    else { start_gnss_ = current_rtk_; }
+    if (!req.use_rtk) { start_gps_location = current_gps_; }
+    else { start_gps_location = current_rtk_; }
+    use_rtk = req.use_rtk;
+    start_local_position_ = current_local_pos_;
 
     start_atti_ = current_atti_;
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
-    pathGenerator.setInitCoord(start_gnss_.latitude,
-                               start_gnss_.longitude, (float) 10, (float)start_atti_eul.Yaw());
+    pathGenerator.setInitCoord(start_gps_location.latitude,
+                               start_gps_location.longitude, (float) 10, (float)start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -178,7 +181,7 @@ void RiserInspection::step() {
 
     float xCmd, yCmd, zCmd;
 
-    localOffsetFromGpsOffset(localOffset, current_gps_, start_gnss_);
+    localOffsetFromGpsOffset(localOffset, current_gps_, start_gps_location);
 
     double xOffsetRemaining = target_offset_x - localOffset.x;
     double yOffsetRemaining = target_offset_y - localOffset.y;
@@ -298,14 +301,14 @@ void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
             if (!finished) {
                 step();
             } else {
-                if (!use_rtk) { start_gnss_ = current_gps_; }
-                else { start_gnss_ = current_rtk_; }
+                if (!use_rtk) { start_gps_location = current_gps_; }
+                else { start_gps_location = current_rtk_; }
                 start_local_position_ = current_local_pos_;
                 setTarget(std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
                           std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+                state++;
             }
             if (state > waypoint_list[0].size()) { finished = true; startMission=false;}
-            else { state++; }
         }
     }
 }

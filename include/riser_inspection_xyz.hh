@@ -80,7 +80,7 @@ private:
     ros::ServiceClient camera_action_service;
     /// Messages from GPS, RTK and Attitude
     //Start
-    sensor_msgs::NavSatFix start_gnss_;
+    sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::Quaternion start_atti_;
     ignition::math::Quaterniond start_atti_eul; // Transfor Atti Quaternion to Euler Angles
     geometry_msgs::Point start_local_position_;
