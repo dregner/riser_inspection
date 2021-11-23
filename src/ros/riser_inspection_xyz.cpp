@@ -41,6 +41,7 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
         start_mission_service = nh.advertiseService("riser_inspection/start_mission",
                                                     &RiserInspection::startMission_serviceCB, this);
         sdk_ctrl_authority_service = nh.serviceClient<dji_sdk::SDKControlAuthority>("dji_sdk/sdk_control_authority");
+        drone_activation_service = nh.serviceClient<dji_sdk::Activation>("dji_sdk/activation");
         drone_task_service = nh.serviceClient<dji_sdk::DroneTaskControl>("dji_sdk/drone_task_control");
         set_local_pos_reference = nh.serviceClient<dji_sdk::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
         ROS_INFO("Started services");
