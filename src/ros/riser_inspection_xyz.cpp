@@ -15,10 +15,10 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         ros::NodeHandle nh_private("~");
 
         std::string gps_topic, rtk_topic, attitude_topic, root_directory;
-        nh_private.param("gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
-        nh_private.param("rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
-        nh_private.param("attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
-        nh_private.param("root_directory", root_directory, std::string("/home/nvidia/Documents"));
+        nh_private.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
+        nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
+        nh_private.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
+        nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/nvidia/Documents"));
 
         pathGenerator.setFolderName(root_directory);
         gpsSub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
@@ -81,12 +81,12 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
 
-    ros::param::get("/riser_inspection_wp/riser_distance", riser_distance);
-    ros::param::get("/riser_inspection_wp/riser_diameter", riser_diameter);
-    ros::param::get("/riser_inspection_wp/horizontal_points", h_points);
-    ros::param::get("/riser_inspection_wp/vertical_points", v_points);
-    ros::param::get("/riser_inspection_wp/delta_H", delta_h);
-    ros::param::get("/riser_inspection_wp/delta_V", delta_v);
+    ros::param::get("/riser_inspection/riser_distance", riser_distance);
+    ros::param::get("/riser_inspection/riser_diameter", riser_diameter);
+    ros::param::get("/riser_inspection/horizontal_points", h_points);
+    ros::param::get("/riser_inspection/vertical_points", v_points);
+    ros::param::get("/riser_inspection/delta_H", delta_h);
+    ros::param::get("/riser_inspection/delta_V", delta_v);
 
     // Setting intial parameters to create waypoints
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,(float) delta_v);

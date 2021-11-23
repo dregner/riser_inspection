@@ -90,7 +90,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
                       << std::setprecision(10) << wp_array[2] << ","
                       << std::setprecision(10) << wp_array[3] << ","
                       << 0.1 << "," << 2 << ",TRUE" << "\n";
-	    waypoint_counter++;
+            waypoint_counter++;
         }
     }
 }
