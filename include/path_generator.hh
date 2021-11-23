@@ -86,7 +86,7 @@ public:
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_XY(double *wp_array);
+    void csv_save_ugcs_XY(double *wp_array, double z, double yaw);
 
     void openFile();
 

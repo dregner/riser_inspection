@@ -11,8 +11,8 @@ PathGenerate::~PathGenerate() {
 
 }
 
-void PathGenerate::reset(){
-	firstTime = true;
+void PathGenerate::reset() {
+    firstTime = true;
 }
 
 
@@ -62,7 +62,7 @@ void PathGenerate::csv_save_ugcs(double *wp_array) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
-	waypoint_counter = 1;
+        waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
         saved_wp_ << waypoint_counter << ","
@@ -78,7 +78,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     if (firstTime == true) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
-	waypoint_counter = 1;
+        waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
         if (std::abs(alt0_ - altitude) < 0.01 ||
@@ -94,19 +94,19 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_XY(double *wp_array) {
+void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
     if (firstTime == true) {
-        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime" << std::endl;
+        saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;
         firstTime = false;
-	waypoint_counter = 1;
+        waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
         saved_wp_ << waypoint_counter << ","
                   << std::setprecision(10) << wp_array[0] << ","
                   << std::setprecision(10) << wp_array[1] << ","
-                  << std::setprecision(10) << wp_array[2] << ","
-                  << std::setprecision(10) << wp_array[3] << ","
-                  << 1 << "," << 2 << "\n";
+                  << std::setprecision(3) << z << ","
+                  << std::setprecision(3) << yaw << "\n";
+        waypoint_counter++;
     }
 }
 
@@ -131,11 +131,15 @@ void PathGenerate::createInspectionPoints(int csv_type) {
     int count_wp = 1;
     float initial = alt0_; // initiate altitude value
     float vertical; // Set if will move drone down or up INITIALLY DOWN.
+    float old_alt = 0;
+    float alt;
     for (int i = 0; i < angleCount_; i++) {
         if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
         for (int k = 0; k < altitudeCount_; k++) {
             /// Set altitude of this waypoint
             float altitude = initial - (float) k * vertical * deltaAltitude_;
+            if (k == 0) { alt = old_alt; }
+            else { alt = old_alt - (float) vertical * deltaAltitude_; }
             /// Set Polar values
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
@@ -149,78 +153,79 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             switch (csv_type) {
                 case 1:
                     csv_save_ugcs(waypoint_);
-                if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
-                break;
+                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
+                    break;
                 case 2:
-                    csv_save_ugcs_XY(xy_array_);
-                if (count_wp >= angleCount_ * altitudeCount_) {
-                    std::cout << "Saved on UgCS struct emulation" << std::endl;
-                }
-                break;
+                    csv_save_ugcs_XY(xy_array_, alt, waypoint_[3]);
+                    old_alt = alt;
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct emulation" << std::endl;
+                    }
+                    break;
                 case 3:
                     csv_save_ugcs_simplify(waypoint_, altitude);
-                if (count_wp >= angleCount_ * altitudeCount_) {
-                    std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
-                }
-                break;
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                    }
+                    break;
                 case 4:
                     csv_save_DJI(waypoint_, count_wp);
-                if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
-                break;
+                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
+                    break;
             }
             if (k == altitudeCount_ - 1) {
                 initial = altitude;
             } // set initial altitude value when finished de vertical movement.
             count_wp += 1;
-            }
         }
-        closeFile();
     }
+    closeFile();
+}
 
-    void PathGenerate::openFile() {
-        std::string slash = "/";
-        saved_wp_.open(file_path_ + slash + file_name_);
+void PathGenerate::openFile() {
+    std::string slash = "/";
+    saved_wp_.open(file_path_ + slash + file_name_);
+}
+
+void PathGenerate::closeFile() {
+    saved_wp_.close();
+}
+
+bool PathGenerate::exists(const std::string &name) {
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
+
+void PathGenerate::setFileName(std::string file_name) {
+    file_name_ = file_name;
+}
+
+std::string PathGenerate::getFileName() {
+
+    return file_name_;
+}
+
+std::string PathGenerate::getFolderName() {
+    return file_path_;
+}
+
+void PathGenerate::setFolderName(std::string file_name) {
+    if (exists(file_name.c_str())) { file_path_ = file_name; }
+    else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
+}
+
+std::vector<std::vector<std::string>>
+PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
+    std::ifstream file(filepath);
+    std::vector<std::vector<std::string>> dataList;
+    std::string line;
+    // Iterate through each line and split the content using delimeter
+    while (getline(file, line)) {
+        std::vector<std::string> vec;
+        boost::algorithm::split(vec, line, boost::is_any_of(delimeter));
+        dataList.push_back(vec);
     }
-
-    void PathGenerate::closeFile() {
-        saved_wp_.close();
-    }
-
-    bool PathGenerate::exists(const std::string &name) {
-        struct stat buffer;
-        return (stat(name.c_str(), &buffer) == 0);
-    }
-
-    void PathGenerate::setFileName(std::string file_name) {
-        file_name_ = file_name;
-    }
-
-    std::string PathGenerate::getFileName() {
-
-        return file_name_;
-    }
-
-    std::string PathGenerate::getFolderName() {
-        return file_path_;
-    }
-
-    void PathGenerate::setFolderName(std::string file_name) {
-        if (exists(file_name.c_str())) { file_path_ = file_name; }
-        else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
-    }
-
-    std::vector<std::vector<std::string>>
-    PathGenerate::read_csv(const std::string &filepath, const std::string &delimeter) {
-        std::ifstream file(filepath);
-        std::vector<std::vector<std::string>> dataList;
-        std::string line;
-        // Iterate through each line and split the content using delimeter
-        while (getline(file, line)) {
-            std::vector<std::string> vec;
-            boost::algorithm::split(vec, line, boost::is_any_of(delimeter));
-            dataList.push_back(vec);
-        }
-        // Close the File
-        file.close();
-        return dataList;
-    }
+    // Close the File
+    file.close();
+    return dataList;
+}
