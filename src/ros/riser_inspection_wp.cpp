@@ -1,4 +1,4 @@
-#include <riser_inspection.hh>
+#include <riser_inspection_wp.hh>
 
 
 RiserInspection::RiserInspection() {
@@ -13,16 +13,18 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
     try {
         ros::NodeHandle nh_private("~");
 
-        std::string gps_topic, rtk_topic, attitude_topic;
+        std::string gps_topic, rtk_topic, attitude_topic, root_directory;
         // Topic parameters
         nh_private.param("gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
         nh_private.param("rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
+        nh_private.param("root_directory", root_directory, std::string("/home/nvidia/Documents"));
 
-
+        pathGenerator.setFolderName(root_directory);
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
-        rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>( rtk_topic, 1, &RiserInspection::rtk_callback, this);
-        attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>( attitude_topic, 1, &RiserInspection::atti_callback, this);
+        rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &RiserInspection::rtk_callback, this);
+        attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic, 1,
+                                                                       &RiserInspection::atti_callback, this);
 
         ROS_INFO("Subscribe complet");
     } catch (ros::Exception &e) {
@@ -60,7 +62,8 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
     }
 }
 
-bool RiserInspection::ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res) {
+bool
+RiserInspection::ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res) {
     ROS_INFO("Received Points");
     dji_sdk::Activation activation;
     drone_activation_service.call(activation);
@@ -86,7 +89,7 @@ bool RiserInspection::ask_control(riser_inspection::askControl::Request &req, ri
             ROS_INFO("ack.info: set = %i id = %i", sdkAuthority.response.cmd_set,
                      sdkAuthority.response.cmd_id);
             ROS_INFO("ack.data: %i", sdkAuthority.response.ack_data);
-             return true;
+            return true;
         }
     }
 }
@@ -117,18 +120,19 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     ROS_INFO("Received Points");
     pathGenerator.reset();
 
-        // Path generate parameters
-        int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
+    // Path generate parameters
+    int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
 
-        ros::param::get("/riser_inspection_wp/riser_distance", riser_distance);
-        ros::param::get("/riser_inspection_wp/riser_diameter", riser_diameter);
-        ros::param::get("/riser_inspection_wp/horizontal_points", h_points);
-        ros::param::get("/riser_inspection_wp/vertical_points", v_points);
-        ros::param::get("/riser_inspection_wp/delta_H", delta_h);
-        ros::param::get("/riser_inspection_wp/delta_V", delta_v);
+    ros::param::get("/riser_inspection_wp/riser_distance", riser_distance);
+    ros::param::get("/riser_inspection_wp/riser_diameter", riser_diameter);
+    ros::param::get("/riser_inspection_wp/horizontal_points", h_points);
+    ros::param::get("/riser_inspection_wp/vertical_points", v_points);
+    ros::param::get("/riser_inspection_wp/delta_H", delta_h);
+    ros::param::get("/riser_inspection_wp/delta_V", delta_v);
 
-        // Setting intial parameters to create waypoints
-        pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,(float) delta_v);
+    // Setting intial parameters to create waypoints
+    pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
+                                     (float) delta_v);
 
 
     // Define where comes the initial value
@@ -139,7 +143,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gnss_.latitude,
-                               start_gnss_.longitude, (float) 10, (float)start_atti_eul.Yaw());
+                               start_gnss_.longitude, (float) 10, (float) start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -157,16 +161,16 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         return res.result = false;
     } else {
         ROS_INFO("Starting Waypoint Mission");
-        if(runWaypointMission(100)){
+        if (runWaypointMission(100)) {
             ROS_INFO("Finished");
             doing_mission = true;
             old_gps_ = current_gps_;
-            return res.result =true;
+            return res.result = true;
 
 
-        }else{
+        } else {
             ROS_WARN("Error");
-            return res.result =false;
+            return res.result = false;
         }
     }
 }
@@ -174,27 +178,30 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps_ = *msg;
-    if(doing_mission){
-        if(std::abs(current_gps_.altitude - old_gps_.altitude) > 0.2){
-            if(takePicture()){ ROS_INFO("Took picture"); old_gps_ = current_gps_;}
-            else{ ROS_WARN("Unable to take picture");}  
-        }  
+    if (doing_mission) {
+        if (std::abs(current_gps_.altitude - old_gps_.altitude) > 0.2) {
+            if (takePicture()) {
+                ROS_INFO("Took picture");
+                old_gps_ = current_gps_;
+            } else { ROS_WARN("Unable to take picture"); }
+        }
     }
 }
+
 void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_rtk_ = *msg;
 }
+
 void RiserInspection::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
     current_atti_ = msg->quaternion;
     current_atti_euler_.Set(current_atti_.w, current_atti_.x, current_atti_.y, current_atti_.z);
 }
 
-bool RiserInspection::takePicture()
-{
-  dji_sdk::CameraAction cameraAction;
-  cameraAction.request.camera_action = 0;
-  camera_action_service.call(cameraAction);
-  return cameraAction.response.result;
+bool RiserInspection::takePicture() {
+    dji_sdk::CameraAction cameraAction;
+    cameraAction.request.camera_action = 0;
+    camera_action_service.call(cameraAction);
+    return cameraAction.response.result;
 }
 
 ServiceAck
@@ -270,7 +277,7 @@ bool RiserInspection::askControlAuthority() {
 }
 
 std::vector<DJI::OSDK::WayPointSettings>
-RiserInspection::createWayPoint(const std::vector<std::vector<std::string>>& csv_file,
+RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv_file,
                                 dji_sdk::MissionWaypointTask &waypointTask) {
     std::vector<DJI::OSDK::WayPointSettings> wp_list; // create a list (vector) containing waypoint structures
 
@@ -333,15 +340,12 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     }
 
     // Waypoint Mission: Start
-    if (missionAction(DJI_MISSION_TYPE::WAYPOINT,
-                      MISSION_ACTION::START)
-            .result) {
+    if (missionAction(DJI_MISSION_TYPE::WAYPOINT, MISSION_ACTION::START).result) {
         ROS_INFO("Mission start command sent successfully");
     } else {
         ROS_WARN("Failed sending mission start command");
         return false;
     }
-
     return true;
 }
 

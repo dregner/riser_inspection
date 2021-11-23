@@ -90,18 +90,17 @@ if (NOT OPEN_CV_3_3_0_INSTALLED)
 
 	add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
 	target_link_libraries(stereo_disparity ${catkin_LIBRARIES}
-            ${DJIOSDK_LIBRARIES}
-            ${OpenCV_LIBS}
-            )
+            ${DJIOSDK_LIBRARIES}            ${OpenCV_LIBS}            )
 
 	add_executable(stereo_calib src/stereo/stereo_calib.cpp)
 	target_link_libraries(stereo_calib ${catkin_LIBRARIES}
-            ${DJIOSDK_LIBRARIES}
-            ${OpenCV_LIBS}
-            )
+            ${DJIOSDK_LIBRARIES}            ${OpenCV_LIBS}            )
 endif()
-add_executable(riser_inspection_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
-target_link_libraries(riser_inspection_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(riser_inspection_wp_node src/ros/riser_inspection_wp_node.cpp src/ros/riser_inspection_wp.cpp src/path/path_generator.cpp)
+target_link_libraries(riser_inspection_wp_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(riser_inspection_xyz_node src/ros/riser_inspection_xyz_node.cpp src/ros/riser_inspection_xyz.cpp src/path/path_generator.cpp)
+target_link_libraries(riser_inspection_xyz_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)

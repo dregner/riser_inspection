@@ -2,9 +2,9 @@
     <arg name="gps_topic" default="/dji_sdk/gps_position" />
     <arg name="rtk_topic" default="/dji_sdk/rtk_position" />
     <arg name="attitude_topic" default="/dji_sdk/attitude" />
-    <arg name="root_directory" default="/media/vant3d" />
+    <arg name="root_directory" default="/home/nvidia/Documents" />
 
-    <node pkg="riser_inspection" type="riser_inspection_node" name="riser_inspection_wp" output="screen">
+    <node pkg="riser_inspection" type="riser_inspection_xyz_node" name="riser_inspection_xyz" output="screen">
         <param name="gps_topic" type="string" value="$(arg gps_topic)" />
         <param name="rtk_topic" type="string" value="$(arg rtk_topic)" />
         <param name="attitude_topic" type="string" value="$(arg attitude_topic)" />

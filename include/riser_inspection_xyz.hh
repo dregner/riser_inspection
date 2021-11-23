@@ -70,17 +70,17 @@ private:
     ros::Publisher ctrlPosYawPub;
     ros::Publisher ctrlBrakePub;
     /// node Services
-    ros::ServiceServer generate_pathway_service;
     ros::ServiceServer wp_folders_service;
     ros::ServiceServer start_mission_service;
     /// DJI Services Clients
+    ros::ServiceClient drone_activation_service;
     ros::ServiceClient set_local_pos_reference;
     ros::ServiceClient sdk_ctrl_authority_service;
     ros::ServiceClient drone_task_service;
-    ros::ServiceClient take_photo_service;
+    ros::ServiceClient camera_action_service;
     /// Messages from GPS, RTK and Attitude
     //Start
-    sensor_msgs::NavSatFix start_location_gnss_;
+    sensor_msgs::NavSatFix start_gnss_;
     geometry_msgs::Quaternion start_atti_;
     ignition::math::Quaterniond start_atti_eul; // Transfor Atti Quaternion to Euler Angles
     geometry_msgs::Point start_local_position_;
@@ -111,8 +111,6 @@ public:
     /// ROS Service CALLBACKS
     bool folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
 
-    bool pathGen_serviceCB(riser_inspection::wpGenerate::Request &req, riser_inspection::wpGenerate::Response &res);
-
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
 
@@ -133,7 +131,7 @@ public:
 
     bool set_local_position();
 
-    bool obtain_control();
+    bool askControlAuthority();
 
     void step();
 

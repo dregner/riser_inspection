@@ -81,11 +81,9 @@ private:
     geometry_msgs::Quaternion start_atti_;
     ignition::math::Quaterniond start_atti_eul;
 
-
-
     PathGenerate pathGenerator;
 
-    bool use_rtk, doing_mission;
+    bool use_rtk = false, doing_mission = false;
 
 public:
     RiserInspection();
