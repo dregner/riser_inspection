@@ -71,6 +71,7 @@ void PathGenerate::csv_save_ugcs(double *wp_array) {
                   << std::setprecision(10) << wp_array[2] << ","
                   << std::setprecision(10) << wp_array[3] << ","
                   << 1 << "," << 2 << ",TRUE" << "\n";
+	    waypoint_counter++;
     }
 }
 
@@ -89,11 +90,10 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
                       << std::setprecision(10) << wp_array[2] << ","
                       << std::setprecision(10) << wp_array[3] << ","
                       << 0.1 << "," << 2 << ",TRUE" << "\n";
-            waypoint_counter++;
+	    waypoint_counter++;
         }
     }
 }
-
 void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
     if (firstTime == true) {
         saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;

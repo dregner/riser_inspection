@@ -33,7 +33,6 @@
 #include <djiosdk/dji_telemetry.hpp>
 
 //Riser inspection includes
-#include <riser_inspection/wpGenerate.h>
 #include <riser_inspection/wpFolders.h>
 #include <riser_inspection/wpStartMission.h>
 

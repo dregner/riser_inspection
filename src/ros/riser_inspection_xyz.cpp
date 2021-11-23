@@ -109,8 +109,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         pathGenerator.createInspectionPoints(2); // 2 return XYZ
         ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
-        waypoint_list = pathGenerator.read_csv(
-                pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
+
     } catch (ros::Exception &e) {
         ROS_WARN("ROS error %s", e.what());
         return res.result = false;
@@ -120,6 +119,8 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         return res.result = false;
     } else {
         ROS_INFO("Starting Waypoint Mission");
+       // waypoint_list = pathGenerator.read_csv(
+       //         pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
         startMission = true;
         state = 1;
         return res.result = true;
