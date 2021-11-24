@@ -72,13 +72,13 @@ private:
     ros::ServiceClient camera_action_service;
 
     /// Messages from GPS, RTK and Attitude
-    sensor_msgs::NavSatFix current_gps_;
+    sensor_msgs::NavSatFix current_gps;
     sensor_msgs::NavSatFix old_gps_;
-    sensor_msgs::NavSatFix current_rtk_;
-    geometry_msgs::Quaternion current_atti_;
+    sensor_msgs::NavSatFix current_rtk;
+    geometry_msgs::Quaternion current_atti;
     ignition::math::Quaterniond current_atti_euler_;
     sensor_msgs::NavSatFix start_gps_location;
-    geometry_msgs::Quaternion start_atti_;
+    geometry_msgs::Quaternion start_attitude;
     ignition::math::Quaterniond start_atti_eul;
 
     PathGenerate pathGenerator;

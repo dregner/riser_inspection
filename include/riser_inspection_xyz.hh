@@ -80,15 +80,15 @@ private:
     /// Messages from GPS, RTK and Attitude
     //Start
     sensor_msgs::NavSatFix start_gps_location;
-    geometry_msgs::Quaternion start_atti_;
+    geometry_msgs::Quaternion start_attitude;
     ignition::math::Quaterniond start_atti_eul; // Transfor Atti Quaternion to Euler Angles
-    geometry_msgs::Point start_local_position_;
+    geometry_msgs::Point start_local_position;
     //Current
-    sensor_msgs::NavSatFix current_gps_;
-    sensor_msgs::NavSatFix current_rtk_;
-    geometry_msgs::Quaternion current_atti_;
+    sensor_msgs::NavSatFix current_gps;
+    sensor_msgs::NavSatFix current_rtk;
+    geometry_msgs::Quaternion current_atti;
     ignition::math::Quaterniond atti_Eul; // Transfor Atti Quaternion to Euler Angles
-    geometry_msgs::Point current_local_pos_;
+    geometry_msgs::Point current_local_pos;
     /// Class to create and save Waypoints
     PathGenerate pathGenerator;
     std::vector<std::vector<std::string>> waypoint_list;
@@ -130,13 +130,14 @@ public:
 
     bool set_local_position();
 
-    bool askControlAuthority();
+    bool askControlAuthority(bool asked);
 
     void step();
 
     void reset();
 
     void setTarget(float x, float y, float z, float yaw);
+
 };
 
 #endif // RISER_INSPECTION_H

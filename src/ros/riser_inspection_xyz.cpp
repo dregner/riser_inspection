@@ -14,7 +14,7 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
     try {
         ros::NodeHandle nh_private("~");
 
-        std::string gps_topic, rtk_topic, attitude_topic,localPos_topic, root_directory;
+        std::string gps_topic, rtk_topic, attitude_topic, localPos_topic, root_directory;
         nh_private.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
         nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("/riser_inspection/localPos_topic", localPos_topic, std::string("/dji_sdk/local_position"));
@@ -45,6 +45,7 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
                                                  &RiserInspection::folders_serviceCB, this);
         start_mission_service = nh.advertiseService("riser_inspection/start_mission",
                                                     &RiserInspection::startMission_serviceCB, this);
+        /// Service Clients from DJI
         sdk_ctrl_authority_service = nh.serviceClient<dji_sdk::SDKControlAuthority>("dji_sdk/sdk_control_authority");
         drone_activation_service = nh.serviceClient<dji_sdk::Activation>("dji_sdk/activation");
         set_local_pos_reference = nh.serviceClient<dji_sdk::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
@@ -58,11 +59,11 @@ void RiserInspection::initServices(ros::NodeHandle &nh) {
 bool RiserInspection::folders_serviceCB(riser_inspection::wpFolders::Request &req,
                                         riser_inspection::wpFolders::Response &res) {
 
-    if (req.file_name.c_str() != NULL) {
+    if (req.file_name.c_str() != nullptr) {
         ROS_INFO("Changing waypoint archive name %s", req.file_name.c_str());
         pathGenerator.setFileName(req.file_name);
     }
-    if (pathGenerator.exists(req.file_path.c_str())) {
+    if (pathGenerator.exists(req.file_path)) {
         ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
         pathGenerator.setFolderName(req.file_path);
         res.result = true;
@@ -97,16 +98,16 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     // Define where comes the initial value
-    if (!req.use_rtk) { start_gps_location = current_gps_; }
-    else { start_gps_location = current_rtk_; }
+    if (!req.use_rtk) { start_gps_location = current_gps; }
+    else { start_gps_location = current_rtk; }
     use_rtk = req.use_rtk;
-    start_local_position_ = current_local_pos_;
+    start_local_position = current_local_pos;
 
-    start_atti_ = current_atti_;
-    start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
+    start_attitude = current_atti;
+    start_atti_eul.Set(start_attitude.w, start_attitude.x, start_attitude.y, start_attitude.z);
     // Define start positions to create waypoints
-    pathGenerator.setInitCoord(start_gps_location.latitude,
-                               start_gps_location.longitude, (float) 10, (float) start_atti_eul.Yaw());
+    pathGenerator.setInitCoord((double) start_gps_location.latitude,
+                               (double) start_gps_location.longitude, (float) 10, (float) start_atti_eul.Yaw());
     ROS_INFO("Set initial values");
 
     try {
@@ -124,11 +125,21 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     } else {
         ROS_INFO("Starting Waypoint Mission");
         waypoint_list = pathGenerator.read_csv(pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
-        if(set_local_position()) {
-            startMission = true;
+        if (set_local_position()) {
+            ROS_INFO("Local reference");
+            reset();
             state = 1;
+            start_gps_location = current_gps;
+            start_local_position = current_local_pos;
+            setTarget(std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                      std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+            ROS_INFO("START ROUTE %i -> x: %f,y: %f,z: %f,yaw: %f", state,
+                     std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                     std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+            state++;
+            startMission = true;
             return res.result = true;
-        }else{return res.result = false;}
+        } else { return res.result = false; }
     }
 }
 
@@ -143,8 +154,8 @@ void RiserInspection::localOffsetFromGpsOffset(geometry_msgs::Vector3 &deltaNed,
     deltaNed.z = target.altitude - origin.altitude;
 }
 
-bool RiserInspection::askControlAuthority() {
-    // Activate
+bool RiserInspection::askControlAuthority(bool asked) {
+    // Activate - TODO: Do I need the activation?
     dji_sdk::Activation activation;
     drone_activation_service.call(activation);
     if (!activation.response.result) {
@@ -155,7 +166,7 @@ bool RiserInspection::askControlAuthority() {
     } else {
         ROS_INFO("Activated successfully");
         dji_sdk::SDKControlAuthority sdkAuthority;
-        sdkAuthority.request.control_enable = 1;
+        sdkAuthority.request.control_enable = asked;
         sdk_ctrl_authority_service.call(sdkAuthority);
         if (sdkAuthority.response.result) {
             ROS_INFO("Obtain SDK control Authority successfully");
@@ -175,19 +186,33 @@ bool RiserInspection::askControlAuthority() {
             }
         }
     }
+    return false;
 }
 
+void RiserInspection::setTarget(float x, float y, float z, float yaw) {
+    target_offset_x = x;
+    target_offset_y = y;
+    target_offset_z = z;
+    target_yaw = yaw;
+}
+
+void RiserInspection::reset() {
+    inbound_counter = 0;
+    outbound_counter = 0;
+    break_counter = 0;
+    finished = false;
+}
 
 void RiserInspection::step() {
     static int info_counter = 0;
     geometry_msgs::Vector3 localOffset;
 
-    float speedFactor = 0.3;
+    float speedFactor = 0.2;
     float yawThresholdInDeg = 2;
 
     float xCmd, yCmd, zCmd;
 
-    localOffsetFromGpsOffset(localOffset, current_gps_, start_gps_location);
+    localOffsetFromGpsOffset(localOffset, current_gps, start_gps_location);
 
     double xOffsetRemaining = target_offset_x - localOffset.x;
     double yOffsetRemaining = target_offset_y - localOffset.y;
@@ -200,8 +225,8 @@ void RiserInspection::step() {
     info_counter++;
     if (info_counter > 25) {
         info_counter = 0;
-        ROS_INFO("-----x=%f, y=%f, z=%f, yaw=%f ...", localOffset.x, localOffset.y, localOffset.z, yawInRad);
-        ROS_INFO("+++++dx=%f, dy=%f, dz=%f, dyaw=%f ...", xOffsetRemaining, yOffsetRemaining, zOffsetRemaining,
+        ROS_INFO("---x=%f, y=%f, z=%f, yaw=%f", localOffset.x, localOffset.y, localOffset.z, yawInRad);
+        ROS_INFO("+++dx=%f, dy=%f, dz=%f, dyaw=%f", xOffsetRemaining, yOffsetRemaining, zOffsetRemaining,
                  yawInRad - yawDesiredRad);
     }
     if (abs(xOffsetRemaining) >= speedFactor)
@@ -214,7 +239,7 @@ void RiserInspection::step() {
     else
         yCmd = yOffsetRemaining;
 
-    zCmd = start_local_position_.z + target_offset_z;
+    zCmd = start_local_position.z + target_offset_z;
 
 
     /*!
@@ -288,55 +313,72 @@ bool RiserInspection::set_local_position() {
 }
 
 void RiserInspection::attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
-    current_atti_ = msg->quaternion;
+    current_atti = msg->quaternion;
     atti_Eul.Set(msg->quaternion.w, msg->quaternion.x, msg->quaternion.y, msg->quaternion.z);
 }
 
 void RiserInspection::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
-    current_local_pos_ = msg->point;
+    current_local_pos = msg->point;
 }
 
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     static ros::Time start_time = ros::Time::now();
     ros::Duration elapsed_time = ros::Time::now() - start_time;
-    current_gps_ = *msg;
-    if (startMission) {
-        // Down sampled to 50Hz loop
-        if (elapsed_time > ros::Duration(0.02)) {
-            start_time = ros::Time::now();
-            if (!finished) {
-                step();
-            } else {
-                if (!use_rtk) { start_gps_location = current_gps_; }
-                else { start_gps_location = current_rtk_; }
-                start_local_position_ = current_local_pos_;
-                setTarget(std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
-                          std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
-                state++;
-            }
-            if (state > waypoint_list[0].size()) {
-                finished = true;
-                startMission = false;
+    current_gps = *msg;
+    if(!use_rtk) {
+        if (startMission) {
+            // Down sampled to 50Hz loop
+            if (elapsed_time > ros::Duration(0.02)) {
+                start_time = ros::Time::now();
+                if (!finished) {
+                    step();
+                } else {
+                    start_gps_location = current_gps;
+                    start_local_position = current_local_pos;
+                    setTarget(std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                              std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+                    ROS_INFO("START ROUTE %i -> x: %f,y: %f,z: %f,yaw: %f", state,
+                             std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                             std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+                    state++;
+                }
+                if (state > waypoint_list[0].size()) {
+                    finished = true;
+                    startMission = false;
+                }
             }
         }
     }
 }
 
 void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
-    current_rtk_ = *msg;
+    static ros::Time start_time = ros::Time::now();
+    ros::Duration elapsed_time = ros::Time::now() - start_time;
+    current_rtk = *msg;
+    if(use_rtk) {
+        if (startMission) {
+            // Down sampled to 50Hz loop
+            if (elapsed_time > ros::Duration(0.02)) {
+                start_time = ros::Time::now();
+                if (!finished) {
+                    step();
+                } else {
+                    start_gps_location = current_rtk;
+                    start_local_position = current_local_pos;
+                    setTarget(std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                              std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+                    ROS_INFO("START ROUTE %i -> x: %f,y: %f,z: %f,yaw: %f", state,
+                             std::stof(waypoint_list[state][1]), std::stof(waypoint_list[state][2]),
+                             std::stof(waypoint_list[state][3]), std::stof(waypoint_list[state][4]));
+                    state++;
+                }
+                if (state > waypoint_list[0].size()) {
+                    finished = true;
+                    startMission = false;
+                }
+            }
+        }
+    }
 }
 
-void RiserInspection::setTarget(float x, float y, float z, float yaw) {
-    target_offset_x = x;
-    target_offset_y = y;
-    target_offset_z = z;
-    target_yaw = yaw;
-}
-
-void RiserInspection::reset() {
-    inbound_counter = 0;
-    outbound_counter = 0;
-    break_counter = 0;
-    finished = false;
-}
 

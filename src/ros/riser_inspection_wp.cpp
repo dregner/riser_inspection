@@ -136,11 +136,11 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     // Define where comes the initial value
-    if (!req.use_rtk) { start_gps_location = current_gps_; }
-    else { start_gps_location = current_rtk_; }
+    if (!req.use_rtk) { start_gps_location = current_gps; }
+    else { start_gps_location = current_rtk; }
 
-    start_atti_ = current_atti_;
-    start_atti_eul.Set(start_atti_.w, start_atti_.x, start_atti_.y, start_atti_.z);
+    start_attitude = current_atti;
+    start_atti_eul.Set(start_attitude.w, start_attitude.x, start_attitude.y, start_attitude.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gps_location.latitude,
                                start_gps_location.longitude, (float) 10, (float) start_atti_eul.Yaw());
@@ -164,7 +164,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         if (runWaypointMission(100)) {
             ROS_INFO("Finished");
             doing_mission = true;
-            old_gps_ = current_gps_;
+            old_gps_ = current_gps;
             return res.result = true;
 
 
@@ -177,24 +177,24 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
-    current_gps_ = *msg;
+    current_gps = *msg;
     if (doing_mission) {
-        if (std::abs(current_gps_.altitude - old_gps_.altitude) > 0.2) {
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.2) {
             if (takePicture()) {
                 ROS_INFO("Took picture");
-                old_gps_ = current_gps_;
+                old_gps_ = current_gps;
             } else { ROS_WARN("Unable to take picture"); }
         }
     }
 }
 
 void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
-    current_rtk_ = *msg;
+    current_rtk = *msg;
 }
 
 void RiserInspection::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
-    current_atti_ = msg->quaternion;
-    current_atti_euler_.Set(current_atti_.w, current_atti_.x, current_atti_.y, current_atti_.z);
+    current_atti = msg->quaternion;
+    current_atti_euler_.Set(current_atti.w, current_atti.x, current_atti.y, current_atti.z);
 }
 
 bool RiserInspection::takePicture() {
