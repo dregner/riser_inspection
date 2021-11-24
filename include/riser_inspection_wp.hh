@@ -75,13 +75,14 @@ private:
     sensor_msgs::NavSatFix current_gps;
     sensor_msgs::NavSatFix old_gps_;
     sensor_msgs::NavSatFix current_rtk;
-    geometry_msgs::Quaternion current_atti;
+    geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler_;
     sensor_msgs::NavSatFix start_gps_location;
-    geometry_msgs::Quaternion start_attitude;
+    geometry_msgs::QuaternionStamped start_attitude;
     ignition::math::Quaterniond start_atti_eul;
 
     PathGenerate pathGenerator;
+    std::vector<std::vector<std::string>> waypoint_list;
 
     bool use_rtk = false, doing_mission = false;
 

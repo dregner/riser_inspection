@@ -2,8 +2,8 @@
     <arg name="gps_topic" default="/dji_sdk/gps_position" />
     <arg name="rtk_topic" default="/dji_sdk/rtk_position" />
     <arg name="attitude_topic" default="/dji_sdk/attitude" />
-    <arg name="localPos_topic" default="/dji_sdk/local_positon" />
-    <arg name="root_directory" default="/home/nvidia/Documents" />
+    <arg name="localPos_topic" default="/dji_sdk/local_position" />
+    <arg name="root_directory" default="/home/vant3d/Documents" />
 
     <node pkg="riser_inspection" type="riser_inspection_xyz_node" name="riser_inspection" output="screen">
         <param name="gps_topic" type="string" value="$(arg gps_topic)" />

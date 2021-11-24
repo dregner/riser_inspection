@@ -96,6 +96,7 @@ private:
     bool use_rtk = false; // Default: using GPS signal
     bool startMission = false; // Default: to not start mission
     bool finished = false; // Default: false
+    bool init = true;
     int  state = 0; // Specify state of waypoints
 
 public:

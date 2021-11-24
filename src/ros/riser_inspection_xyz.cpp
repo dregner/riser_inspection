@@ -12,14 +12,13 @@ RiserInspection::~RiserInspection() {}
 
 void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
     try {
-        ros::NodeHandle nh_private("~");
 
         std::string gps_topic, rtk_topic, attitude_topic, localPos_topic, root_directory;
-        nh_private.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
-        nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
-        nh_private.param("/riser_inspection/localPos_topic", localPos_topic, std::string("/dji_sdk/local_position"));
-        nh_private.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
-        nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/nvidia/Documents"));
+        ros::param::param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
+        ros::param::param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
+        ros::param::param("/riser_inspection/localPos_topic", localPos_topic, std::string("/dji_sdk/local_position"));
+        ros::param::param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
+        ros::param::param("/riser_inspection/root_directory", root_directory, std::string("/home/nvidia/Documents"));
 
         pathGenerator.setFolderName(root_directory);
         gpsSub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
@@ -28,6 +27,8 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
                                                                  this);
         localPosSub = nh.subscribe<geometry_msgs::PointStamped>(localPos_topic, 10,
                                                                 &RiserInspection::local_position_callback, this);
+
+//        set_local_position();
 
         ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
         ctrlBrakePub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_generic", 10);
@@ -85,12 +86,12 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
 
-    ros::param::get("/riser_inspection/riser_distance", riser_distance);
-    ros::param::get("/riser_inspection/riser_diameter", riser_diameter);
-    ros::param::get("/riser_inspection/horizontal_points", h_points);
-    ros::param::get("/riser_inspection/vertical_points", v_points);
-    ros::param::get("/riser_inspection/delta_H", delta_h);
-    ros::param::get("/riser_inspection/delta_V", delta_v);
+    ros::param::param("/riser_inspection/riser_distance", riser_distance, 5);
+    ros::param::param("/riser_inspection/riser_diameter", riser_diameter, 300);
+    ros::param::param("/riser_inspection/horizontal_points", h_points, 5);
+    ros::param::param("/riser_inspection/vertical_points", v_points, 5);
+    ros::param::param("/riser_inspection/delta_H", delta_h, 15);
+    ros::param::param("/riser_inspection/delta_V", delta_v, 300);
 
     // Setting intial parameters to create waypoints
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
@@ -119,7 +120,7 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
         ROS_WARN("ROS error %s", e.what());
         return res.result = false;
     }
-    if (!askControlAuthority()) {
+    if (!askControlAuthority(true)) {
         ROS_WARN("Cannot get Authority Control");
         return res.result = false;
     } else {
@@ -214,9 +215,9 @@ void RiserInspection::step() {
 
     localOffsetFromGpsOffset(localOffset, current_gps, start_gps_location);
 
-    double xOffsetRemaining = target_offset_x - localOffset.x;
-    double yOffsetRemaining = target_offset_y - localOffset.y;
-    double zOffsetRemaining = target_offset_z - localOffset.z;
+    double xOffsetRemaining = target_offset_x - current_local_pos.x;
+    double yOffsetRemaining = target_offset_y - current_local_pos.y;
+    double zOffsetRemaining = target_offset_z;// - current_local_pos.z;
 
     double yawDesiredRad = DEG2RAD(target_yaw);
     double yawThresholdInRad = DEG2RAD(yawThresholdInDeg);
@@ -279,9 +280,9 @@ void RiserInspection::step() {
         ctrlPosYawPub.publish(controlPosYaw);
     }
 
-    if (std::abs(xOffsetRemaining) < 0.5 &&
-        std::abs(yOffsetRemaining) < 0.5 &&
-        std::abs(zOffsetRemaining) < 0.5 &&
+    if (std::abs(xOffsetRemaining) < 0.1 &&
+        std::abs(yOffsetRemaining) < 0.1 &&
+        std::abs(zOffsetRemaining) < 0.1 &&
         std::abs(yawInRad - yawDesiredRad) < yawThresholdInRad) {
         //! 1. We are within bounds; start incrementing our in-bound counter
         inbound_counter++;
@@ -325,6 +326,11 @@ void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
     static ros::Time start_time = ros::Time::now();
     ros::Duration elapsed_time = ros::Time::now() - start_time;
     current_gps = *msg;
+    if (init){
+        init = false;
+        start_gps_location = current_gps;
+        start_local_position = current_local_pos;
+    }
     if(!use_rtk) {
         if (startMission) {
             // Down sampled to 50Hz loop

@@ -140,10 +140,11 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     else { start_gps_location = current_rtk; }
 
     start_attitude = current_atti;
-    start_atti_eul.Set(start_attitude.w, start_attitude.x, start_attitude.y, start_attitude.z);
+    start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y, start_attitude.quaternion.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gps_location.latitude,
-                               start_gps_location.longitude, (float) 10, (float) start_atti_eul.Yaw());
+                               start_gps_location.longitude, (float) start_gps_location.altitude,
+                               (float) RAD2DEG(start_atti_eul.Yaw())-90);
     ROS_INFO("Set initial values");
 
     try {
@@ -162,12 +163,9 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     } else {
         ROS_INFO("Starting Waypoint Mission");
         if (runWaypointMission(100)) {
-            ROS_INFO("Finished");
             doing_mission = true;
             old_gps_ = current_gps;
             return res.result = true;
-
-
         } else {
             ROS_WARN("Error");
             return res.result = false;
@@ -179,11 +177,20 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
     if (doing_mission) {
-        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.2) {
-            if (takePicture()) {
-                ROS_INFO("Took picture");
-                old_gps_ = current_gps;
-            } else { ROS_WARN("Unable to take picture"); }
+        static int counter = 1, wp_counter = 1;
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.15) {
+            takePicture();
+            ROS_INFO("Took picture %i - lat: %f, lon: %f, alt: %f, yaw: %f", counter,
+                     current_gps.latitude, current_gps.longitude, current_gps.altitude, RAD2DEG(current_atti_euler_.Yaw())-90);
+            counter++;
+            old_gps_ = current_gps;
+//            if (std::abs(std::stod(waypoint_list[wp_counter][1]) - current_gps.latitude) > 1e-6 ||
+//                std::abs(std::stod(waypoint_list[wp_counter][2]) - current_gps.longitude) > 1e-6){
+//                takePicture();
+//                wp_counter++;
+//                ROS_INFO("Took picture %i", counter);
+//                counter++;
+//            }
         }
     }
 }
@@ -193,8 +200,8 @@ void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
 }
 
 void RiserInspection::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
-    current_atti = msg->quaternion;
-    current_atti_euler_.Set(current_atti.w, current_atti.x, current_atti.y, current_atti.z);
+    current_atti = *msg;
+    current_atti_euler_.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y, current_atti.quaternion.z);
 }
 
 bool RiserInspection::takePicture() {
@@ -284,13 +291,13 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv
     // Push first waypoint as a initial position
     DJI::OSDK::WayPointSettings start_wp;
     setWaypointDefaults(&start_wp);
+    start_wp.index = 0;
     start_wp.latitude = start_gps_location.latitude;
     start_wp.longitude = start_gps_location.longitude;
-    start_wp.altitude = (float) 10;
-    start_wp.yaw = (int16_t) start_atti_eul.Yaw();
+    start_wp.altitude = (float) start_gps_location.altitude;
+    start_wp.yaw = int16_t (RAD2DEG( start_atti_eul.Yaw())-90);
     ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gps_location.latitude,
-             start_gps_location.longitude, start_gps_location.altitude, start_atti_eul.Yaw());
-    start_wp.index = 0;
+             start_gps_location.longitude, start_gps_location.altitude, RAD2DEG(start_atti_eul.Yaw())-90);
     wp_list.push_back(start_wp);
 
 
@@ -322,9 +329,9 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
 
     ROS_INFO("Creating Waypoints..\n");
     // Transform from CSV to DJI vector
-    std::vector<std::vector<std::string>> filePathGen = pathGenerator.read_csv(
+    waypoint_list = pathGenerator.read_csv(
             pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
-    std::vector<WayPointSettings> generatedWP = createWayPoint(filePathGen, waypointTask);
+    std::vector<WayPointSettings> generatedWP = createWayPoint(waypoint_list, waypointTask);
 
     // Waypoint Mission: Upload the waypoints
     ROS_INFO("Uploading Waypoints..\n");
@@ -354,16 +361,20 @@ void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &
     dji_sdk::MissionWaypoint waypoint;
     for (auto wp = wp_list.begin();
          wp != wp_list.end(); ++wp) {
-        ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\n ", wp->latitude,
-                 wp->longitude, wp->altitude);
+        ROS_INFO("Waypoint created at (LLA): %f,%f,%f - %i\n ", wp->latitude,
+                 wp->longitude, wp->altitude, wp->yaw);
         waypoint.latitude = wp->latitude;
         waypoint.longitude = wp->longitude;
         waypoint.altitude = wp->altitude;
+        waypoint.target_yaw = wp->yaw;
         waypoint.damping_distance = 0;
-        waypoint.target_yaw = 0;
         waypoint.target_gimbal_pitch = 0;
-        waypoint.turn_mode = 0;
-        waypoint.has_action = 0;
+        if(wp == wp_list.begin() || wp == wp_list.end()){
+            waypoint.turn_mode = 0;
+        }else {
+            waypoint.turn_mode = 1;
+        }
+        waypoint.has_action = 1;
         waypointTask.mission_waypoint.push_back(waypoint);
     }
 }
@@ -372,26 +383,26 @@ void RiserInspection::setWaypointDefaults(DJI::OSDK::WayPointSettings *wp) {
     wp->damping = 0;
     wp->yaw = 0;
     wp->gimbalPitch = 0;
-    wp->turnMode = 0;
-    wp->hasAction = 0;
+    wp->turnMode = 1; // 0 - clockwise, 1 - counter-clockwise
+    wp->hasAction = 1;
     wp->actionTimeLimit = 100;
     wp->actionNumber = 2;
     wp->actionRepeat = 1;
     for (int i = 0; i < 16; ++i) {
         wp->commandList[i] = 0;
-        wp->commandParameter[i] = 0;
+        wp->commandParameter[i] = 1000;
     }
     wp->commandList[0] = 0; // commandList[0] = WP_ACTION_STAY (ms)
     wp->commandParameter[0] = 5000; // Set command to wait milliseconds
-    wp->commandList[2] = 1; // commandList[2] = WP_ACTION_SIMPLE_SHOT
-    wp->commandParameter[2] = 1; // Set command to take photo
+    wp->commandList[1] = 1; // commandList[2] = WP_ACTION_SIMPLE_SHOT
+    wp->commandParameter[1] = 1; // Set command to take photo
 //    wp->commandList[4] = 1; // commandList[4] = WP_ACTION_CRAFT_YAW
 //    wp->commandParameter[4] = 0; // Set command to take photo
 }
 
 void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask) {
     waypointTask.velocity_range = 2; // Maximum speed joystick input(2~15m)
-    waypointTask.idle_velocity = 0.2; //Cruising Speed (without joystick input, no more than vel_cmd_range)
+    waypointTask.idle_velocity = 0.1; //Cruising Speed (without joystick input, no more than vel_cmd_range)
     waypointTask.action_on_finish = dji_sdk::MissionWaypointTask::FINISH_NO_ACTION;
     waypointTask.mission_exec_times = 1;
     waypointTask.yaw_mode = dji_sdk::MissionWaypointTask::YAW_MODE_WAYPOINT;
