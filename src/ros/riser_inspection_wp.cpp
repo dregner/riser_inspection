@@ -18,7 +18,7 @@ void RiserInspection::initSubscribers(ros::NodeHandle &nh) {
         nh_private.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
         nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
-        nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/nvidia/Documents"));
+        nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
 
         pathGenerator.setFolderName(root_directory);
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &RiserInspection::gps_callback, this);
@@ -140,11 +140,12 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     else { start_gps_location = current_rtk; }
 
     start_attitude = current_atti;
-    start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y, start_attitude.quaternion.z);
+    start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y,
+                       start_attitude.quaternion.z);
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gps_location.latitude,
                                start_gps_location.longitude, (float) start_gps_location.altitude,
-                               (float) RAD2DEG(start_atti_eul.Yaw())-90);
+                               (float) RAD2DEG(start_atti_eul.Yaw()) - 90);
     ROS_INFO("Set initial values");
 
     try {
@@ -177,20 +178,47 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
 void RiserInspection::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
     if (doing_mission) {
-        static int counter = 1, wp_counter = 1;
+        static int img_counter = 1, wp_counter = 1;
         if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.15) {
-            takePicture();
-            ROS_INFO("Took picture %i - lat: %f, lon: %f, alt: %f, yaw: %f", counter,
-                     current_gps.latitude, current_gps.longitude, current_gps.altitude, RAD2DEG(current_atti_euler_.Yaw())-90);
-            counter++;
-            old_gps_ = current_gps;
-//            if (std::abs(std::stod(waypoint_list[wp_counter][1]) - current_gps.latitude) > 1e-6 ||
-//                std::abs(std::stod(waypoint_list[wp_counter][2]) - current_gps.longitude) > 1e-6){
-//                takePicture();
-//                wp_counter++;
-//                ROS_INFO("Took picture %i", counter);
-//                counter++;
-//            }
+            if (missionAction(MISSION_ACTION::PAUSE).result) {
+                ROS_INFO("Wait Altitude - %i", img_counter);
+                dji_sdk::CameraAction cameraAction;
+                cameraAction.request.camera_action = 0;
+                camera_action_service.call(cameraAction);
+                if (cameraAction.response.result) {
+                    ROS_INFO("TOOK PHOTO");
+                    ros::Duration(6.0).sleep();
+                }
+                missionAction(MISSION_ACTION::RESUME);
+                old_gps_ = current_gps;
+                img_counter++;
+            }
+        }
+        if (std::abs(current_gps.latitude - waypoint_l[wp_counter][1]) < 5e-6 &&
+            std::abs(current_gps.longitude - waypoint_l[wp_counter][2]) < 6e-6 &&
+            std::abs(current_gps.altitude - waypoint_l[wp_counter][3]) < 0.04) {
+            ROS_INFO("REACH WP %i", wp_counter);
+            ROS_INFO("Current: lat: %f\tlon: %f\talt: %f", current_gps.latitude, current_gps.longitude, current_gps.altitude);
+            ROS_INFO("WP - %f: lat: %f\tlon: %f\talt: %f", waypoint_l[wp_counter][0], waypoint_l[wp_counter][1], waypoint_l[wp_counter][2], waypoint_l[wp_counter][3]);
+            if (missionAction(MISSION_ACTION::PAUSE).result) {
+                ROS_INFO("Wait Altitude - %i", img_counter);
+                dji_sdk::CameraAction cameraAction;
+                cameraAction.request.camera_action = 0;
+                camera_action_service.call(cameraAction);
+                if (cameraAction.response.result) {
+                    ROS_INFO("TOOK PHOTO");
+                    ros::Duration(6.0).sleep();
+                }
+                missionAction(MISSION_ACTION::RESUME);
+                old_gps_ = current_gps;
+                img_counter++;
+                wp_counter++;
+            }
+        }
+        if (std::abs(current_gps.latitude - waypoint_l[waypoint_l.size() - 2][1]) < 1e-5 &&
+            std::abs(current_gps.longitude - waypoint_l[waypoint_l.size() - 2][2]) < 1e-5){
+            ROS_INFO("FINISHED MISSION");
+            doing_mission = false;
         }
     }
 }
@@ -201,36 +229,26 @@ void RiserInspection::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
 
 void RiserInspection::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
     current_atti = *msg;
-    current_atti_euler_.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y, current_atti.quaternion.z);
+    current_atti_euler_.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
+                            current_atti.quaternion.z);
 }
 
-bool RiserInspection::takePicture() {
-    dji_sdk::CameraAction cameraAction;
-    cameraAction.request.camera_action = 0;
-    camera_action_service.call(cameraAction);
-    return cameraAction.response.result;
-}
 
 ServiceAck
-RiserInspection::missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
-                               DJI::OSDK::MISSION_ACTION action) {
+RiserInspection::missionAction(DJI::OSDK::MISSION_ACTION action) {
     dji_sdk::MissionWpAction missionWpAction;
-    switch (type) {
-        case DJI::OSDK::WAYPOINT:
-            missionWpAction.request.action = action;
-            waypoint_action_service.call(missionWpAction);
-            if (!missionWpAction.response.result) {
-                ROS_WARN("ack.info: set = %i id = %i", missionWpAction.response.cmd_set,
-                         missionWpAction.response.cmd_id);
-                ROS_WARN("ack.data: %i", missionWpAction.response.ack_data);
-            }
-            return {static_cast<bool>(missionWpAction.response.result),
-                    missionWpAction.response.cmd_set,
-                    missionWpAction.response.cmd_id,
-                    missionWpAction.response.ack_data};
-        case HOTPOINT:
-            break;
+    missionWpAction.request.action = action;
+    waypoint_action_service.call(missionWpAction);
+    if (!missionWpAction.response.result) {
+        ROS_WARN("ack.info: set = %i id = %i", missionWpAction.response.cmd_set,
+                 missionWpAction.response.cmd_id);
+        ROS_WARN("ack.data: %i", missionWpAction.response.ack_data);
     }
+    return {static_cast<bool>(missionWpAction.response.result),
+            missionWpAction.response.cmd_set,
+            missionWpAction.response.cmd_id,
+            missionWpAction.response.ack_data};
+
 }
 
 ServiceAck
@@ -295,11 +313,12 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv
     start_wp.latitude = start_gps_location.latitude;
     start_wp.longitude = start_gps_location.longitude;
     start_wp.altitude = (float) start_gps_location.altitude;
-    start_wp.yaw = int16_t (RAD2DEG( start_atti_eul.Yaw())-90);
-    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gps_location.latitude,
-             start_gps_location.longitude, start_gps_location.altitude, RAD2DEG(start_atti_eul.Yaw())-90);
+    start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90);
+    waypoint_l.push_back(
+            {(float) start_wp.index, (float) start_wp.latitude, (float) start_wp.longitude, start_wp.altitude});
     wp_list.push_back(start_wp);
-
+//    ROS_INFO("Waypoint created at (LLA): %f \t%f \t%f\theading:%f\n", start_gps_location.latitude,
+//             start_gps_location.longitude, start_gps_location.altitude, RAD2DEG(start_atti_eul.Yaw()) - 90);
 
     for (int k = 1; k < csv_file.size(); k++) {
         /// "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture"
@@ -310,11 +329,16 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv
         wp.longitude = std::stod(csv_file[k][2]);
         wp.altitude = std::stof(csv_file[k][3]);
         wp.yaw = std::stof(csv_file[k][4]);
+        waypoint_l.push_back({(float) std::stoi(csv_file[k][0]), (float) std::stod(csv_file[k][1]),
+                              (float) std::stod(csv_file[k][2]), (float) std::stof(csv_file[k][3])});
         wp_list.push_back(wp);
+
     }
     // Come back home
-    start_wp.index = csv_file[0].size() + 1;
+    start_wp.index = wp_list.size();
     wp_list.push_back(start_wp);
+    waypoint_l.push_back(
+            {(float) start_wp.index, (float) start_wp.latitude, (float) start_wp.longitude, start_wp.altitude});
     return wp_list;
 }
 
@@ -327,18 +351,18 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     setWaypointInitDefaults(waypointTask);
 
 
-    ROS_INFO("Creating Waypoints..\n");
+    ROS_INFO("Creating Waypoints..");
     // Transform from CSV to DJI vector
-    waypoint_list = pathGenerator.read_csv(
+    std::vector<std::vector<std::string>> waypoint_list = pathGenerator.read_csv(
             pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
     std::vector<WayPointSettings> generatedWP = createWayPoint(waypoint_list, waypointTask);
 
     // Waypoint Mission: Upload the waypoints
-    ROS_INFO("Uploading Waypoints..\n");
+    ROS_INFO("Uploading Waypoints..");
     uploadWaypoints(generatedWP, responseTimeout, waypointTask);
 
     // Waypoint Mission: Init mission
-    ROS_INFO("Initializing Waypoint Mission..\n");
+    ROS_INFO("Initializing Waypoint Mission.");
     if (initWaypointMission(waypointTask).result) {
         ROS_INFO("Waypoint upload command sent successfully");
     } else {
@@ -347,7 +371,7 @@ bool RiserInspection::runWaypointMission(int responseTimeout) {
     }
 
     // Waypoint Mission: Start
-    if (missionAction(DJI_MISSION_TYPE::WAYPOINT, MISSION_ACTION::START).result) {
+    if (missionAction(MISSION_ACTION::START).result) {
         ROS_INFO("Mission start command sent successfully");
     } else {
         ROS_WARN("Failed sending mission start command");
@@ -361,20 +385,25 @@ void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &
     dji_sdk::MissionWaypoint waypoint;
     for (auto wp = wp_list.begin();
          wp != wp_list.end(); ++wp) {
-        ROS_INFO("Waypoint created at (LLA): %f,%f,%f - %i\n ", wp->latitude,
-                 wp->longitude, wp->altitude, wp->yaw);
         waypoint.latitude = wp->latitude;
         waypoint.longitude = wp->longitude;
         waypoint.altitude = wp->altitude;
         waypoint.target_yaw = wp->yaw;
         waypoint.damping_distance = 0;
         waypoint.target_gimbal_pitch = 0;
-        if(wp == wp_list.begin() || wp == wp_list.end()){
+        waypoint.turn_mode = 1;
+        waypoint.waypoint_action.command_list[0] = 0;
+        waypoint.waypoint_action.command_parameter[0] = 2000;
+        if (wp->index == waypoint_l[0][0]) {
             waypoint.turn_mode = 0;
-        }else {
-            waypoint.turn_mode = 1;
         }
-        waypoint.has_action = 1;
+        if (wp->index >= waypoint_l.size() - 2) {
+            waypoint.turn_mode = 0;
+        }
+        ROS_INFO("Waypoint %i at (LLA): %f,%f,%f - %i", wp->index, waypoint.latitude,
+                 waypoint.longitude, waypoint.altitude, waypoint.target_yaw);
+        ROS_INFO("wp -%i - Turn mode %i", wp->index, waypoint.turn_mode);
+
         waypointTask.mission_waypoint.push_back(waypoint);
     }
 }
@@ -409,4 +438,50 @@ void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
     waypointTask.trace_mode = dji_sdk::MissionWaypointTask::TRACE_POINT;
     waypointTask.action_on_rc_lost = dji_sdk::MissionWaypointTask::ACTION_FREE;
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
+}
+
+void RiserInspection::img_gps_callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
+                                       const sensor_msgs::Image::ConstPtr &img_msg) {
+    if (doing_mission) {
+        static int img_counter = 1;
+        cv_bridge::CvImagePtr cv_img;
+        cv_img = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.1) {
+            if (missionAction(MISSION_ACTION::PAUSE).result) {
+                if (save_image_gps(cv_img, gps_msg, img_counter)) {
+                    ROS_INFO("Took picture %i - lat: %f, lon: %f, alt: %f, yaw: %f", img_counter,
+                             current_gps.latitude, current_gps.longitude, current_gps.altitude,
+                             RAD2DEG(current_atti_euler_.Yaw()) - 90);
+                    img_counter++;
+                    old_gps_ = current_gps;
+                    missionAction(MISSION_ACTION::RESUME);
+                }
+            }
+
+        }
+    }
+}
+
+bool RiserInspection::save_image_gps(const cv_bridge::CvImagePtr &cv_ptr,
+                                     const sensor_msgs::NavSatFix::ConstPtr &gps_msg, int counter) {
+    std::ofstream position_file;
+    position_file.open(pathGenerator.getFolderName() + "/image_position.csv");
+    if (position_file.fail()) {
+        ROS_WARN("Error to open position file");
+        return false;
+    }
+    std::string image_name = pathGenerator.getFolderName() + "image_" + std::to_string(counter) + ".png";
+
+    cv::imwrite(image_name, cv_ptr->image);
+    position_file << image_name << gps_msg->header.stamp.sec << ","
+                  << std::setprecision(11) << gps_msg->longitude << ","
+                  << std::setprecision(11) << gps_msg->latitude << ","
+                  << std::setprecision(11) << gps_msg->altitude << ","
+                  << current_atti.header.stamp.sec << ","
+                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Roll()) << ","
+                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Pitch()) << ","
+                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Yaw()) << std::endl;
+    position_file.close();
+    ROS_INFO("Image %i saved at %s", counter, image_name.c_str());
+    return true;
 }

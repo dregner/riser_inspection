@@ -17,9 +17,9 @@ find_package(catkin REQUIRED COMPONENTS cv_bridge
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
-find_package(OpenCV 3.3.0 QUIET)
+find_package(OpenCV 3 QUIET)
 if (OpenCV_FOUND)
-    message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system, will use it for depth perception sample")
+    message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system")
     message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
     add_definitions(-DOPEN_CV_INSTALLED)
     set(OPEN_CV_3_3_0_INSTALLED TRUE)
@@ -101,6 +101,9 @@ target_link_libraries(riser_inspection_wp_node ${catkin_LIBRARIES} ${dji_sdk_LIB
 
 add_executable(riser_inspection_xyz_node src/ros/riser_inspection_xyz_node.cpp src/ros/riser_inspection_xyz.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_xyz_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(read_gps_atti src/ros/read_gps_atti.cpp)
+target_link_libraries(read_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)

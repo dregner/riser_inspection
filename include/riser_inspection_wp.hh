@@ -16,8 +16,17 @@
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Image.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <ignition/math/Pose3.hh>
+// Message filter includes
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+// Opencv includes
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 // Service from another node
 #include <ros/service_client.h>
@@ -49,7 +58,6 @@
 #include <service_ack_type.hpp>
 
 
-
 class RiserInspection {
 private:
     ros::NodeHandle nh_;
@@ -58,11 +66,14 @@ private:
     ros::Subscriber rtk_sub_;
     ros::Subscriber attitude_sub_;
 
+    /// Message Filter callback
+    message_filters::Subscriber<sensor_msgs::Image> img_sub_filter;
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_filter;
+
     /// Foler and File services
     ros::ServiceServer ask_control_service;
     ros::ServiceServer wp_folders_service;
     ros::ServiceServer start_mission_service;
-
 
     /// DJI Services
     ros::ServiceClient drone_activation_service;
@@ -80,9 +91,11 @@ private:
     sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::QuaternionStamped start_attitude;
     ignition::math::Quaterniond start_atti_eul;
+    /// Messages from camera image
+    sensor_msgs::Image gimbal_image;
 
     PathGenerate pathGenerator;
-    std::vector<std::vector<std::string>> waypoint_list;
+     std::vector<std::vector<float>> waypoint_l;
 
     bool use_rtk = false, doing_mission = false;
 
@@ -104,21 +117,24 @@ public:
 
     void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
+    void img_gps_callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
+                          const sensor_msgs::Image::ConstPtr &img_msg);
+
+    bool save_image_gps(const cv_bridge::CvImagePtr &cv_ptr,
+                        const sensor_msgs::NavSatFix::ConstPtr &gps_msg, int counter);
+
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
-    bool takePicture();
-
-    ServiceAck missionAction(DJI::OSDK::DJI_MISSION_TYPE type,
-                             DJI::OSDK::MISSION_ACTION action);
+    ServiceAck missionAction(DJI::OSDK::MISSION_ACTION action);
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
 
     bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
-    createWayPoint(const std::vector<std::vector<std::string>>& csv_file, dji_sdk::MissionWaypointTask &waypointTask);
+    createWayPoint(const std::vector<std::vector<std::string>> &csv_file, dji_sdk::MissionWaypointTask &waypointTask);
 
     void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list, int responseTimeout,
                          dji_sdk::MissionWaypointTask &waypointTask);
