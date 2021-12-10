@@ -36,8 +36,8 @@ void PathGenerate::inspectionAngle2Heading(float polar_angle) {
 
     float heading = -polar_angle + head0_;
     /// Conditions to keep range - 180 to 180
-    if (heading < -180) { heading = heading - 360; }
-    if (heading > 180) { heading = heading + 360; }
+    if (heading < -180) { heading = heading + 360; }
+    if (heading > 180) { heading = heading - 360; }
     waypoint_[3] = heading;
 }
 

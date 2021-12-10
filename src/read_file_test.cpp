@@ -8,7 +8,7 @@ int main() {
     std::cout << "Creating waypoint pathway" << std::endl;
     riser.setFolderName("/home/vant3d/Documents");
     riser.setFileName("teste.csv");
-    riser.setInitCoord( 46.775450, 8.345125, 1839.8 + 10, 74.2);
+    riser.setInitCoord( 40, 10,  10, -60);
     riser.setInspectionParam(5, 300,5, 4, 15, -300);
     riser.createInspectionPoints(1);
 
