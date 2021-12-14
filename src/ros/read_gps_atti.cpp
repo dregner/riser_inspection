@@ -21,6 +21,8 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << RAD2DEG(rpy.Yaw()) << std::endl;
     std::cout << "OFFSET" << std::endl;
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << -90+RAD2DEG(rpy.Yaw()) << std::endl;
+    std::cout << "RAD" << std::endl;
+    std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
     std::cout << "GPS" << std::endl;
     std::cout << "LAT: " << gps_msg->latitude << "\tLON: " << gps_msg->longitude << "\tALT: " << gps_msg->altitude << std::endl;
     std::cout << "\033[2J\033[1;1H";     // clear terminal

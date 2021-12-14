@@ -123,12 +123,18 @@ bool RiserInspection::startMission_serviceCB(riser_inspection::wpStartMission::R
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
 
-    ros::param::get("/riser_inspection/riser_distance", riser_distance);
+/*    ros::param::get("/riser_inspection/riser_distance", riser_distance);
     ros::param::get("/riser_inspection/riser_diameter", riser_diameter);
     ros::param::get("/riser_inspection/horizontal_points", h_points);
     ros::param::get("/riser_inspection/vertical_points", v_points);
     ros::param::get("/riser_inspection/delta_H", delta_h);
-    ros::param::get("/riser_inspection/delta_V", delta_v);
+    ros::param::get("/riser_inspection/delta_V", delta_v);*/
+    nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
+    nh_.param("/riser_inspection/riser_diameter", riser_diameter, 300);
+    nh_.param("/riser_inspection/horizontal_points", h_points, 5);
+    nh_.param("/riser_inspection/vertical_points", v_points, 4);
+    nh_.param("/riser_inspection/delta_H", delta_h, 15);
+    nh_.param("/riser_inspection/delta_V", delta_v, 300);
 
     // Setting intial parameters to create waypoints
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
@@ -313,7 +319,8 @@ RiserInspection::createWayPoint(const std::vector<std::vector<std::string>> &csv
     start_wp.latitude = start_gps_location.latitude;
     start_wp.longitude = start_gps_location.longitude;
     start_wp.altitude = (float) start_gps_location.altitude;
-    start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90);
+    if (int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90) < -180) { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90 + 360); }
+    if (int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90) > 180) { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw())- 90 - 360); }
     waypoint_l.push_back(
             {(float) start_wp.index, (float) start_wp.latitude, (float) start_wp.longitude, start_wp.altitude});
     wp_list.push_back(start_wp);
@@ -400,9 +407,9 @@ void RiserInspection::uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &
         if (wp->index >= waypoint_l.size() - 2) {
             waypoint.turn_mode = 0;
         }
-        ROS_INFO("Waypoint %i at (LLA): %f,%f,%f - %i", wp->index, waypoint.latitude,
+/*        ROS_INFO("Waypoint %i at (LLA): %f,%f,%f - %i", wp->index, waypoint.latitude,
                  waypoint.longitude, waypoint.altitude, waypoint.target_yaw);
-        ROS_INFO("wp -%i - Turn mode %i", wp->index, waypoint.turn_mode);
+        ROS_INFO("wp -%i - Turn mode %i", wp->index, waypoint.turn_mode);*/
 
         waypointTask.mission_waypoint.push_back(waypoint);
     }
