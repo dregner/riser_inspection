@@ -136,7 +136,7 @@ public:
     std::vector<DJI::OSDK::WayPointSettings>
     createWayPoint(const std::vector<std::vector<std::string>> &csv_file, dji_sdk::MissionWaypointTask &waypointTask);
 
-    void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list, int responseTimeout,
+    void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
                          dji_sdk::MissionWaypointTask &waypointTask);
 
     bool runWaypointMission(int responseTimeout);
