@@ -1,3 +1,4 @@
 bool use_rtk
+uint8 control_type
 ---
 bool result

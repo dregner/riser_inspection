@@ -15,123 +15,113 @@
 #include <ros/service_server.h>
 #include <ros/ros.h>
 #include <sensor_msgs/NavSatFix.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/Image.h>
+#include <sensor_msgs/Joy.h>
+#include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <ignition/math/Pose3.hh>
-// Message filter includes
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-// Opencv includes
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 // Service from another node
 #include <ros/service_client.h>
 #include <std_srvs/SetBool.h>
 
 // DJI SDK includes
-#include <dji_sdk/Activation.h>
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
-#include <dji_sdk/MissionWpUpload.h>
-#include <dji_sdk/MissionWpAction.h>
 #include <djiosdk/dji_vehicle.hpp>
 #include <djiosdk/dji_telemetry.hpp>
 #include <dji_sdk/CameraAction.h>
-
+#include <dji_sdk/SetLocalPosRef.h>
+#include <dji_sdk/MissionWpUpload.h>
+#include <dji_sdk/MissionWpAction.h>
 //Riser inspection includes
-#include <riser_inspection/askControl.h>
-#include <riser_inspection/wpFolders.h>
 #include <riser_inspection/wpStartMission.h>
-
+#include <path_generator.hh>
+#include <service_ack_type.hpp>
 //System includes
 #include <string>
 #include <experimental/filesystem>
 #include <sys/stat.h>
 #include <dirent.h>
 
-//Class of Path Generate
-#include <path_generator.hh>
-#include <service_ack_type.hpp>
-
 
 class RiserInspection {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub_;
-    ros::Subscriber rtk_sub_;
-    ros::Subscriber attitude_sub_;
+    ros::Subscriber gps_sub;
+    ros::Subscriber attitude_sub;
+    ros::Subscriber local_pos_sub;
+    ros::Publisher ctrlPosYawPub;
 
-    /// Message Filter callback
-    message_filters::Subscriber<sensor_msgs::Image> img_sub_filter;
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_sub_filter;
-
-    /// Foler and File services
-    ros::ServiceServer ask_control_service;
-    ros::ServiceServer wp_folders_service;
-    ros::ServiceServer start_mission_service;
-
+    /// XYZ service
+    ros::ServiceServer local_position_service;
     /// DJI Services
     ros::ServiceClient drone_activation_service;
     ros::ServiceClient sdk_ctrl_authority_service;
+    ros::ServiceClient camera_action_service;
+    ros::ServiceClient set_local_pos_reference;
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
-    ros::ServiceClient camera_action_service;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps;
-    sensor_msgs::NavSatFix old_gps_;
+    sensor_msgs::NavSatFix old_gps;
     sensor_msgs::NavSatFix current_rtk;
+    geometry_msgs::PointStamped current_local_pos;
     geometry_msgs::QuaternionStamped current_atti;
-    ignition::math::Quaterniond current_atti_euler_;
+    ignition::math::Quaterniond current_atti_euler;
     sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::QuaternionStamped start_attitude;
     ignition::math::Quaterniond start_atti_eul;
-    /// Messages from camera image
-    sensor_msgs::Image gimbal_image;
 
+    /// Local position targets
+    float target_offset_x, target_offset_y, target_offset_z, target_yaw;
+
+    /// Path Generator
     PathGenerate pathGenerator;
-     std::vector<std::vector<float>> waypoint_l;
-
+    std::vector<std::vector<float>> waypoint_l; // List of waypoints.
+    int state;
+    int mission_type;
+    /// Internal references
     bool use_rtk = false, doing_mission = false;
-
 public:
     RiserInspection();
 
     ~RiserInspection();
 
-    void initSubscribers(ros::NodeHandle &nh);
+    void subscribing(ros::NodeHandle &nh);
 
-    void initServices(ros::NodeHandle &nh);
+    void set_waypoint_list(std::vector<std::vector<std::string>> vector, std::vector<float> initial_position);
 
-    bool folders_serviceCB(riser_inspection::wpFolders::Request &req, riser_inspection::wpFolders::Response &res);
+    bool obtain_control(bool ask);
 
-    bool ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res);
 
-    bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
-                                riser_inspection::wpStartMission::Response &res);
+
+    /// Service and Topics Callback functions
+
+    void local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg);
 
     void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
-    void img_gps_callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
-                          const sensor_msgs::Image::ConstPtr &img_msg);
+    void attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
-    bool save_image_gps(const cv_bridge::CvImagePtr &cv_ptr,
-                        const sensor_msgs::NavSatFix::ConstPtr &gps_msg, int counter);
+    bool start_mision_callback(riser_inspection::wpStartMission::Request &req,
+                               riser_inspection::wpStartMission::Response &res);
 
-    void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
+    /// Functions to local position control
 
-    void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
+    bool set_local_position();
+
+    void setTarget(float x, float y, float z, float yaw);
+
+
+    void local_position_ctrl(double &xCmd, double &yCmd, double &zCmd);
+
+    /// Functions to waypoint mission control
 
     ServiceAck missionAction(DJI::OSDK::MISSION_ACTION action);
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
-
-    bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
     createWayPoint(const std::vector<std::vector<std::string>> &csv_file, dji_sdk::MissionWaypointTask &waypointTask);
@@ -145,7 +135,7 @@ public:
 
     static void setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask);
 
-    std::vector<DJI::OSDK::WayPointSettings> DJI_waypoints(std::vector<std::vector<std::string>> wp_list);
+
 };
 
 #endif // RISER_INSPECTION_H

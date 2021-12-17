@@ -5,7 +5,7 @@
 #include <local_position_control.h>
 
 LocalController::LocalController() {
-    subscribing(nh_);
+//    subscribing(nh_);
 }
 
 LocalController::~LocalController() = default;

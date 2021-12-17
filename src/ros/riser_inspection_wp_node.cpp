@@ -1,10 +1,8 @@
-#include <iostream>
-#include <riser_inspection_wp.hh>
-#include <path_generator.hh>
+#include <waypoint_mission.hh>
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "riser_inspection_wp");
-    RiserInspection riserInspection;
+    WaypointControl riserInspection;
 //    ros::spin();
     while(ros::ok()) {
         ros::spinOnce();

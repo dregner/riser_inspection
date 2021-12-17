@@ -131,15 +131,11 @@ void PathGenerate::createInspectionPoints(int csv_type) {
     int count_wp = 1;
     float initial = alt0_; // initiate altitude value
     float vertical; // Set if will move drone down or up INITIALLY DOWN.
-    float old_alt = 0;
-    float alt;
     for (int i = 0; i < angleCount_; i++) {
         if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
         for (int k = 0; k < altitudeCount_; k++) {
             /// Set altitude of this waypoint
             float altitude = initial - (float) k * vertical * deltaAltitude_;
-            if (k == 0) { alt = old_alt; }
-            else { alt = old_alt - (float) vertical * deltaAltitude_; }
             /// Set Polar values
             polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
             polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
@@ -156,8 +152,7 @@ void PathGenerate::createInspectionPoints(int csv_type) {
                     if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
                     break;
                 case 2:
-                    csv_save_ugcs_XY(xy_array_, alt, waypoint_[3]);
-                    old_alt = alt;
+                    csv_save_ugcs_XY(xy_array_, altitude, waypoint_[3]);
                     if (count_wp >= angleCount_ * altitudeCount_) {
                         std::cout << "Saved on UgCS struct emulation" << std::endl;
                     }
