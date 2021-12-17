@@ -98,6 +98,7 @@ private:
      std::vector<std::vector<float>> waypoint_l;
 
     bool use_rtk = false, doing_mission = false;
+    int img_counter = 1, wp_counter = 1;
 
 public:
     WaypointControl();

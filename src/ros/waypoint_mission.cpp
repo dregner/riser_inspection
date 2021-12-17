@@ -119,6 +119,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
     ROS_INFO("Received Points");
     pathGenerator.reset();
     waypoint_l.clear();
+    img_counter = 1, wp_counter = 1;
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
@@ -176,8 +177,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
 void WaypointControl::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
     if (doing_mission) {
-        static int img_counter = 1, wp_counter = 1;
-        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.15) {
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.1) {
             if (missionAction(MISSION_ACTION::PAUSE).result) {
                 ROS_INFO("Wait Altitude");
                 dji_sdk::CameraAction cameraAction;
@@ -207,7 +207,7 @@ void WaypointControl::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
                 camera_action_service.call(cameraAction);
                 if (cameraAction.response.result) {
                     ROS_INFO("TOOK PHOTO");
-                    ros::Duration(6.0).sleep();
+                    ros::Duration(1).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
                 old_gps_ = current_gps;

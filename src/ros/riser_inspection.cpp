@@ -104,7 +104,7 @@ bool RiserInspection::start_mision_callback(riser_inspection::wpStartMission::Re
         }
         ROS_INFO("Mission will be started using file from %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
-        if (!RiserInspection::obtain_control(true)) {
+        if (!askControlAuthority()) {
             ROS_WARN("Cannot get Authority Control");
             return res.result = false;
         } else {
@@ -452,4 +452,38 @@ void RiserInspection::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
     waypointTask.trace_mode = dji_sdk::MissionWaypointTask::TRACE_POINT;
     waypointTask.action_on_rc_lost = dji_sdk::MissionWaypointTask::ACTION_FREE;
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
+}
+
+bool RiserInspection::askControlAuthority() {
+    // Activate
+    dji_sdk::Activation activation;
+    drone_activation_service.call(activation);
+    if (!activation.response.result) {
+        ROS_WARN("ack.info: set = %i id = %i", activation.response.cmd_set,
+                 activation.response.cmd_id);
+        ROS_WARN("ack.data: %i", activation.response.ack_data);
+        return false;
+    } else {
+        ROS_INFO("Activated successfully");
+        dji_sdk::SDKControlAuthority sdkAuthority;
+        sdkAuthority.request.control_enable = 1;
+        sdk_ctrl_authority_service.call(sdkAuthority);
+        if (sdkAuthority.response.result) {
+            ROS_INFO("Obtain SDK control Authority successfully");
+            return true;
+        } else {
+            if (sdkAuthority.response.ack_data == 3 &&
+                sdkAuthority.response.cmd_set == 1 && sdkAuthority.response.cmd_id == 0) {
+                ROS_INFO("Obtain SDK control Authority in progess, "
+                         "send the cmd again");
+                sdk_ctrl_authority_service.call(sdkAuthority);
+            } else {
+                ROS_WARN("Failed Obtain SDK control Authority");
+                return false;
+                ROS_WARN("ack.info: set = %i id = %i", sdkAuthority.response.cmd_set,
+                         sdkAuthority.response.cmd_id);
+                ROS_WARN("ack.data: %i", sdkAuthority.response.ack_data);
+            }
+        }
+    }
 }

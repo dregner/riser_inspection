@@ -4,7 +4,7 @@
     <arg name="attitude_topic" default="/dji_sdk/attitude" />
     <arg name="root_directory" default="/home/vant3d/Documents" />
 
-    <node pkg="riser_inspection" type="waypoint_mission" name="riser_inspection" output="screen">
+    <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
         <param name="gps_topic" type="string" value="$(arg gps_topic)" />
         <param name="rtk_topic" type="string" value="$(arg rtk_topic)" />
         <param name="attitude_topic" type="string" value="$(arg attitude_topic)" />

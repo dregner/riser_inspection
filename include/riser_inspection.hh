@@ -25,6 +25,7 @@
 #include <std_srvs/SetBool.h>
 
 // DJI SDK includes
+#include <dji_sdk/Activation.h>
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
 #include <djiosdk/dji_vehicle.hpp>
@@ -135,6 +136,7 @@ public:
 
     static void setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask);
 
+    bool askControlAuthority();
 
 };
 
