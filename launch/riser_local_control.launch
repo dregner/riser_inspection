@@ -1,0 +1,11 @@
+<launch>
+    <arg name="gps_topic" default="/dji_sdk/gps_position" />
+    <arg name="attitude_topic" default="/dji_sdk/attitude" />
+    <arg name="localPos_topic" default="/dji_sdk/local_position" />
+
+    <node pkg="riser_inspection" type="local_controller_node" name="riser_inspection" output="screen">
+        <param name="gps_topic" type="string" value="$(arg gps_topic)" />
+        <param name="attitude_topic" type="string" value="$(arg attitude_topic)" />
+        <param name="local_position_topic" type="string" value="$(arg localPos_topic)" />
+    </node>
+</launch>

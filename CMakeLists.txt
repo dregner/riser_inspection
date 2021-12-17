@@ -57,7 +57,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 
 
-add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv)
+add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv LocalPosition.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
@@ -99,11 +99,15 @@ endif()
 add_executable(riser_inspection_wp_node src/ros/riser_inspection_wp_node.cpp src/ros/riser_inspection_wp.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_inspection_wp_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(riser_inspection_xyz_node src/ros/riser_inspection_xyz_node.cpp src/ros/riser_inspection_xyz.cpp src/path/path_generator.cpp)
-target_link_libraries(riser_inspection_xyz_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
+target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(read_gps_atti src/ros/read_gps_atti.cpp)
-target_link_libraries(read_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(gps_atti src/ros/read_gps_atti.cpp)
+target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
+target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
 
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)
