@@ -12,7 +12,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS cv_bridge
         roscpp rospy sensor_msgs
-        message_generation message_filters dji_sdk)
+        message_generation message_filters dji_sdk stereo_vant)
 find_package(ignition-math4)
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
@@ -123,7 +123,3 @@ install(TARGETS waypoint_mission_node
 install(DIRECTORY launch
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
         )
-## Trying some action server and client to path generator
-#add_executable(pathgenerator_server src/pathgenerator_server.cpp)
-#target_link_libraries(pathgenerator_server ${catkin_LIBRARIES})
-#add_dependencies(pathgenerator_server ${riser_inspection_EXPORTED_TARGETS})
