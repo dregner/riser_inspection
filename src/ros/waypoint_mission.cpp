@@ -61,8 +61,7 @@ void WaypointControl::initServices(ros::NodeHandle &nh) {
     }
 }
 
-bool
-WaypointControl::ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res) {
+bool WaypointControl::ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res) {
     ROS_INFO("Received Points");
     dji_sdk::Activation activation;
     drone_activation_service.call(activation);
@@ -120,6 +119,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
     pathGenerator.reset();
     waypoint_l.clear();
     img_counter = 1, wp_counter = 1;
+    voo++; // change images file name
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
@@ -135,8 +135,13 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     // Define where comes the initial value
-    if (!req.use_rtk) { start_gps_location = current_gps; }
-    else { start_gps_location = current_rtk; }
+    if (!req.use_rtk) {
+        start_gps_location = current_gps;
+        use_rtk = req.use_rtk;
+    } else {
+        start_gps_location = current_rtk;
+        use_rtk = req.use_rtk;
+    }
 
     start_attitude = current_atti;
     start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y,
@@ -176,56 +181,16 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 void WaypointControl::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
-    if (doing_mission) {
-        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.1) {
-            if (missionAction(MISSION_ACTION::PAUSE).result) {
-                ROS_INFO("Wait Altitude");
-                dji_sdk::CameraAction cameraAction;
-                cameraAction.request.camera_action = 0;
-                camera_action_service.call(cameraAction);
-                if (cameraAction.response.result) {
-                    ROS_INFO("TOOK PHOTO- %i", img_counter);
-                    ros::Duration(1.0).sleep();
-                }
-                missionAction(MISSION_ACTION::RESUME);
-                old_gps_ = current_gps;
-                img_counter++;
-            }
-        }
-        if (std::abs(current_gps.latitude - waypoint_l[wp_counter][1]) < 5e-6 &&
-            std::abs(current_gps.longitude - waypoint_l[wp_counter][2]) < 6e-6 &&
-            std::abs(current_gps.altitude - waypoint_l[wp_counter][3]) < 0.04) {
-            ROS_INFO("REACH WP %i", wp_counter);
-            ROS_INFO("Current: lat: %f\tlon: %f\talt: %f", current_gps.latitude, current_gps.longitude,
-                     current_gps.altitude);
-            ROS_INFO("WP - %f: lat: %f\tlon: %f\talt: %f", waypoint_l[wp_counter][0], waypoint_l[wp_counter][1],
-                     waypoint_l[wp_counter][2], waypoint_l[wp_counter][3]);
-            if (missionAction(MISSION_ACTION::PAUSE).result) {
-                ROS_INFO("Wait WP %i", wp_counter);
-                dji_sdk::CameraAction cameraAction;
-                cameraAction.request.camera_action = 0;
-                camera_action_service.call(cameraAction);
-                if (cameraAction.response.result) {
-                    ROS_INFO("TOOK PHOTO- %i", img_counter);
-                    ros::Duration(1).sleep();
-                }
-                missionAction(MISSION_ACTION::RESUME);
-                old_gps_ = current_gps;
-                img_counter++;
-                wp_counter++;
-            }
-        }
-        if (std::abs(current_gps.latitude - waypoint_l[waypoint_l.size() - 2][1]) < 1e-5 &&
-            std::abs(current_gps.longitude - waypoint_l[waypoint_l.size() - 2][2]) < 1e-5 &&
-            std::abs(current_gps.altitude - waypoint_l[waypoint_l.size() - 2][3]) < 0.04) {
-            ROS_INFO("FINISHED MISSION");
-            doing_mission = false;
-        }
+    if (!use_rtk) {
+        mission(msg);
     }
 }
 
 void WaypointControl::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_rtk = *msg;
+    if (use_rtk) {
+        mission(msg);
+    }
 }
 
 void WaypointControl::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
@@ -450,48 +415,67 @@ void WaypointControl::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
 }
 
-void WaypointControl::img_gps_callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
-                                       const sensor_msgs::Image::ConstPtr &img_msg) {
+void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     if (doing_mission) {
-        static int img_counter = 1;
-        cv_bridge::CvImagePtr cv_img;
-        cv_img = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8);
-        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.1) {
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.2) {
             if (missionAction(MISSION_ACTION::PAUSE).result) {
-                if (save_image_gps(cv_img, gps_msg, img_counter)) {
-                    ROS_INFO("Took picture %i - lat: %f, lon: %f, alt: %f, yaw: %f", img_counter,
-                             current_gps.latitude, current_gps.longitude, current_gps.altitude,
-                             RAD2DEG(current_atti_euler_.Yaw()) - 90);
-                    img_counter++;
-                    old_gps_ = current_gps;
-                    missionAction(MISSION_ACTION::RESUME);
+                ROS_INFO("Wait Altitude");
+
+                if (take_photo()) {
+                    ROS_INFO("TOOK PHOTO- %i", img_counter);
+                    ros::Duration(6.0).sleep();
                 }
+                missionAction(MISSION_ACTION::RESUME);
+                old_gps_ = *msg;
+                img_counter++;
             }
+        }
+        if (std::abs(current_gps.latitude - waypoint_l[wp_counter][1]) < 5e-6 &&
+            std::abs(current_gps.longitude - waypoint_l[wp_counter][2]) < 6e-6 &&
+            std::abs(current_gps.altitude - waypoint_l[wp_counter][3]) < 0.04) {
+            ROS_INFO("REACH WP %i", wp_counter);
+            ROS_INFO("Current: lat: %f\tlon: %f\talt: %f", current_gps.latitude, current_gps.longitude,
+                     current_gps.altitude);
+            ROS_INFO("WP - %f: lat: %f\tlon: %f\talt: %f", waypoint_l[wp_counter][0], waypoint_l[wp_counter][1],
+                     waypoint_l[wp_counter][2], waypoint_l[wp_counter][3]);
+            if (missionAction(MISSION_ACTION::PAUSE).result) {
+                ROS_INFO("Wait WP %i", wp_counter);
+                dji_sdk::CameraAction cameraAction;
+                cameraAction.request.camera_action = 0;
+                camera_action_service.call(cameraAction);
+                if (take_photo()) {
+                    ROS_INFO("TOOK PHOTO- %i", img_counter);
+                    ros::Duration(6.0).sleep();
+                }
+                missionAction(MISSION_ACTION::RESUME);
+                old_gps_ = *msg;
+                img_counter++;
+                wp_counter++;
+            }
+        }
+        if (std::abs(current_gps.latitude - waypoint_l[waypoint_l.size() - 2][1]) < 1e-5 &&
+            std::abs(current_gps.longitude - waypoint_l[waypoint_l.size() - 2][2]) < 1e-5 &&
+            std::abs(current_gps.altitude - waypoint_l[waypoint_l.size() - 2][3]) < 0.04) {
+            ROS_INFO("FINISHED MISSION");
+            doing_mission = false;
 
         }
     }
 }
-
-bool WaypointControl::save_image_gps(const cv_bridge::CvImagePtr &cv_ptr,
-                                     const sensor_msgs::NavSatFix::ConstPtr &gps_msg, int counter) {
-    std::ofstream position_file;
-    position_file.open(pathGenerator.getFolderName() + "/image_position.csv");
-    if (position_file.fail()) {
-        ROS_WARN("Error to open position file");
-        return false;
+bool WaypointControl::take_photo() {
+    dji_sdk::CameraAction cameraAction;
+    cameraAction.request.camera_action = 0;
+    stereo_vant::PointGray pointGray;
+    pointGray.request.file_name = "stereo";
+    pointGray.request.file_path = pathGenerator.getFolderName() + "/voo_" + std::to_string(voo);
+    if (voo != prev_voo) {
+        pointGray.request.reset_counter = true;
+        prev_voo = voo;
+    } else {
+        pointGray.request.reset_counter = false;
     }
-    std::string image_name = pathGenerator.getFolderName() + "image_" + std::to_string(counter) + ".png";
+    stereo_acquisition.call(pointGray);
+    camera_action_service.call(cameraAction);
 
-    cv::imwrite(image_name, cv_ptr->image);
-    position_file << image_name << gps_msg->header.stamp.sec << ","
-                  << std::setprecision(11) << gps_msg->longitude << ","
-                  << std::setprecision(11) << gps_msg->latitude << ","
-                  << std::setprecision(11) << gps_msg->altitude << ","
-                  << current_atti.header.stamp.sec << ","
-                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Roll()) << ","
-                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Pitch()) << ","
-                  << std::setprecision(7) << RAD2DEG(current_atti_euler_.Yaw()) << std::endl;
-    position_file.close();
-    ROS_INFO("Image %i saved at %s", counter, image_name.c_str());
-    return true;
+    return cameraAction.response.result && pointGray.response.result;
 }

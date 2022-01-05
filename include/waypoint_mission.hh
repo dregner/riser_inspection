@@ -46,7 +46,7 @@
 #include <riser_inspection/askControl.h>
 #include <riser_inspection/wpFolders.h>
 #include <riser_inspection/wpStartMission.h>
-
+#include <stereo_vant/PointGray.h>
 //System includes
 #include <string>
 #include <experimental/filesystem>
@@ -81,6 +81,7 @@ private:
     ros::ServiceClient waypoint_action_service;
     ros::ServiceClient waypoint_upload_service;
     ros::ServiceClient camera_action_service;
+    ros::ServiceClient stereo_acquisition;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps;
@@ -99,6 +100,7 @@ private:
 
     bool use_rtk = false, doing_mission = false;
     int img_counter = 1, wp_counter = 1;
+    int voo = 0, prev_voo = voo;
 
 public:
     WaypointControl();
@@ -118,11 +120,9 @@ public:
 
     void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
-    void img_gps_callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
-                          const sensor_msgs::Image::ConstPtr &img_msg);
+    void mission(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
-    bool save_image_gps(const cv_bridge::CvImagePtr &cv_ptr,
-                        const sensor_msgs::NavSatFix::ConstPtr &gps_msg, int counter);
+    bool take_photo();
 
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 

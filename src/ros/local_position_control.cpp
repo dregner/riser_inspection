@@ -65,8 +65,6 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
         ROS_WARN("ROS error %s", e.what());
         return res.result = false;
     }
-
-
 }
 
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
