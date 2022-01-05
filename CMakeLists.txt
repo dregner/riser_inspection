@@ -1,19 +1,19 @@
 cmake_minimum_required(VERSION 2.8)
 project(riser_inspection)
-
+set_directory_properties(PROPERTIES COMPILE_OPTIONS "-std=c++11;-Wall;-Wextra")
 # Add module path for <name>.cmake conf files
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 
 
-find_package(ignition-math4)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS cv_bridge
         roscpp rospy sensor_msgs
-        message_generation message_filters dji_sdk )
-
+        message_generation message_filters dji_sdk)
+find_package(ignition-math4)
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
@@ -63,7 +63,6 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
 catkin_package(
         INCLUDE_DIRS include
-        LIBRARIES riser_inspection
         CATKIN_DEPENDS roscpp sensor_msgs std_msgs dji_sdk)
 
 
@@ -78,8 +77,6 @@ include_directories(
 
 set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 
-## Declare a C++ library
-add_library(WaypointLib src/ros/waypoint_mission.cpp ${catkin_LIBRARIES})
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
 add_executable(path_generator src/path/create_path.cpp src/path/path_generator.cpp)
@@ -98,8 +95,8 @@ if (NOT OPEN_CV_3_3_0_INSTALLED)
 	target_link_libraries(stereo_calib ${catkin_LIBRARIES}
             ${DJIOSDK_LIBRARIES}            ${OpenCV_LIBS}            )
 endif()
-add_executable(waypoint_mission_node src/ros/riser_inspection_wp_node.cpp  src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
-target_link_libraries(waypoint_mission_node WaypointLib ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(waypoint_mission_node src/ros/riser_inspection_wp_node.cpp src/ros/waypoint_mission.cpp  src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
+target_link_libraries(waypoint_mission_node  ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
@@ -113,12 +110,19 @@ target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition
 add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-target_link_libraries(WaypointLib
-        ${catkin_LIBRARIES}
-        ignition-math4::ignition-math4
+install(DIRECTORY include
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
         )
 
+install(TARGETS waypoint_mission_node
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
 
+install(DIRECTORY launch
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        )
 ## Trying some action server and client to path generator
 #add_executable(pathgenerator_server src/pathgenerator_server.cpp)
 #target_link_libraries(pathgenerator_server ${catkin_LIBRARIES})
