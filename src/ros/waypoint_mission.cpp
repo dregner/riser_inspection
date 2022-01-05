@@ -201,12 +201,12 @@ void WaypointControl::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
             ROS_INFO("WP - %f: lat: %f\tlon: %f\talt: %f", waypoint_l[wp_counter][0], waypoint_l[wp_counter][1],
                      waypoint_l[wp_counter][2], waypoint_l[wp_counter][3]);
             if (missionAction(MISSION_ACTION::PAUSE).result) {
-                ROS_INFO("Wait Altitude - %i", img_counter);
+                ROS_INFO("Wait WP %i", wp_counter);
                 dji_sdk::CameraAction cameraAction;
                 cameraAction.request.camera_action = 0;
                 camera_action_service.call(cameraAction);
                 if (cameraAction.response.result) {
-                    ROS_INFO("TOOK PHOTO");
+                    ROS_INFO("TOOK PHOTO- %i", img_counter);
                     ros::Duration(1).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
