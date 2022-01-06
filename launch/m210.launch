@@ -1,5 +1,5 @@
 <launch>
-    <!-- STEREO V3D NODE PARAMETERS -->
+    <!-- STEREO SPINNAKER NODE PARAMETERS -->
     <arg name="camera_name"               default="stereo" />
     <arg name="run_stereo_image_proc"     default="false" />
 
@@ -83,4 +83,12 @@
             </node>
         </group>
     </group>
+    <!-- V3D STEREO NODE -->
+    <node pkg="stereo_vant" type="stereo_vant3d_node" name="stereo_vant3d" output="screen">
+        <param name="gps_topic" type="string" value="/dji_sdk/gps_position" />
+        <param name="rtk_topic" type="string" value="/dji_sdk/gps_position" />
+        <param name="imu_topic" type="string" value="/dji_sdk/imu" />
+        <param name="camera_left_topic" type="string" value="/stereo/left/image_raw" />
+        <param name="camera_right_topic" type="string" value="/stereo/right/image_raw" />
+    </node>
 </launch>

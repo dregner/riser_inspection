@@ -17,7 +17,7 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
 
     ignition::math::Quaterniond rpy;
     rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
-    float yaw = RAD2DEG(rpy.Yaw()) - 90;
+    float yaw = RAD2DEG(rpy.Yaw())-90 ;
     if (yaw < -180) { yaw = RAD2DEG(rpy.Yaw()) - 90 + 360; }
     if (yaw > 180) { yaw = RAD2DEG(rpy.Yaw())- 90 - 360; }
 
