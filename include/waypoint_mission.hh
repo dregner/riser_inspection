@@ -100,6 +100,7 @@ private:
 
     bool use_rtk = false, doing_mission = false;
     int img_counter = 1, wp_counter = 1;
+    int wait_time = 6;
     int voo = 0, prev_voo = voo;
 
 public:

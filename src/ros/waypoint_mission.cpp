@@ -19,6 +19,7 @@ void WaypointControl::initSubscribers(ros::NodeHandle &nh) {
         nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
         nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
+        nh_private.param("/riser_inspection/wait_time", wait_time, 6);
 
         pathGenerator.setFolderName(root_directory);
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &WaypointControl::gps_callback, this);
@@ -417,13 +418,13 @@ void WaypointControl::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
 
 void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     if (doing_mission) {
-        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.2) {
+        if (std::abs(current_gps.altitude - old_gps_.altitude) > 0.15) {
             if (missionAction(MISSION_ACTION::PAUSE).result) {
                 ROS_INFO("Wait Altitude");
 
                 if (take_photo()) {
                     ROS_INFO("TOOK PHOTO- %i", img_counter);
-                    ros::Duration(6.0).sleep();
+                    ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
                 old_gps_ = *msg;
@@ -445,7 +446,7 @@ void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
                 camera_action_service.call(cameraAction);
                 if (take_photo()) {
                     ROS_INFO("TOOK PHOTO- %i", img_counter);
-                    ros::Duration(6.0).sleep();
+                    ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
                 old_gps_ = *msg;
