@@ -117,12 +117,13 @@ bool WaypointControl::folders_serviceCB(riser_inspection::wpFolders::Request &re
 
 bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                              riser_inspection::wpStartMission::Response &res) {
-    doing_mission = false;
-    ROS_INFO("Received Points");
-    pathGenerator.reset();
-    waypoint_l.clear();
-    img_counter = 1, wp_counter = 1;
+    // Initial setting
+    pathGenerator.reset(); // clear pathGen
+    waypoint_l.clear(); // clear waypoint list
+    img_counter = 1, wp_counter = 1; // Reset counter of image and waypoint
     voo++; // change images file name
+    start_gps_location = current_gps; // Get Initial position
+    use_rtk = req.use_rtk; // Store use of RTK to control image acquisition
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
@@ -137,14 +138,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
                                      (float) delta_v);
 
 
-    // Define where comes the initial value
-    if (!req.use_rtk) {
-        start_gps_location = current_gps;
-        use_rtk = req.use_rtk;
-    } else {
-        start_gps_location = current_rtk;
-        use_rtk = req.use_rtk;
-    }
+
 
     start_attitude = current_atti;
     start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y,
@@ -152,7 +146,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
     // Define start positions to create waypoints
     pathGenerator.setInitCoord(start_gps_location.latitude,
                                start_gps_location.longitude, (float) start_gps_location.altitude,
-                               (int) 90-RAD2DEG(start_atti_eul.Yaw()));
+                               (int) RAD2DEG(start_atti_eul.Yaw()));
     ROS_INFO("Set initial values");
 
     try {
@@ -172,7 +166,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
         ROS_INFO("Starting Waypoint Mission");
         if (runWaypointMission(100)) {
             doing_mission = true;
-            old_gps_ = current_gps;
+            old_gps = current_gps;
             dji_sdk::CameraAction cameraAction;
             cameraAction.request.camera_action = 0;
             stereo_vant::PointGray pointGray;
@@ -206,8 +200,8 @@ void WaypointControl::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
 
 void WaypointControl::atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
     current_atti = *msg;
-    current_atti_euler_.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
-                            current_atti.quaternion.z);
+    current_atti_euler.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
+                           current_atti.quaternion.z);
 }
 
 
@@ -290,12 +284,12 @@ WaypointControl::createWayPoint(const std::vector<std::vector<std::string>> &csv
     start_wp.latitude = start_gps_location.latitude;
     start_wp.longitude = start_gps_location.longitude;
     start_wp.altitude = (float) start_gps_location.altitude - 0.1;
-    if (int16_t(90-RAD2DEG(start_atti_eul.Yaw()) ) < -180) {
-        start_wp.yaw = int16_t(90-RAD2DEG(start_atti_eul.Yaw()) + 360);
+    if (int16_t(RAD2DEG(start_atti_eul.Yaw()) ) < -180) {
+        start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) + 360);
     } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90); }
-    if (int16_t(90-RAD2DEG(start_atti_eul.Yaw())) > 180) {
-        start_wp.yaw = int16_t(90-RAD2DEG(start_atti_eul.Yaw()) - 360);
-    } else { start_wp.yaw = int16_t(90-RAD2DEG(start_atti_eul.Yaw())); }
+    if (int16_t(RAD2DEG(start_atti_eul.Yaw())) > 180) {
+        start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 360);
+    } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw())); }
     waypoint_l.push_back(
             {(float) start_wp.index, (float) start_wp.latitude, (float) start_wp.longitude, start_wp.altitude});
     wp_list.push_back(start_wp);
@@ -428,7 +422,7 @@ void WaypointControl::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
 
 void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     if (doing_mission) {
-        if (std::abs(msg->altitude - old_gps_.altitude) > 0.15) {
+        if (std::abs(msg->altitude - old_gps.altitude) > 0.15) {
             if (missionAction(MISSION_ACTION::PAUSE).result) {
                 ROS_INFO("Wait Altitude - %f m", msg->altitude);
 
@@ -437,7 +431,7 @@ void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
                     ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
-                old_gps_ = *msg;
+                old_gps = *msg;
                 img_counter++;
             }
         }
@@ -459,7 +453,7 @@ void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
                     ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
-                old_gps_ = *msg;
+                old_gps = *msg;
                 img_counter++;
                 wp_counter++;
             }

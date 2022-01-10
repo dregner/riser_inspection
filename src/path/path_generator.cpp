@@ -1,4 +1,5 @@
 #include <path_generator.hh>
+#include <utility>
 
 
 PathGenerate::PathGenerate() {
@@ -7,9 +8,7 @@ PathGenerate::PathGenerate() {
 
 }
 
-PathGenerate::~PathGenerate() {
-
-}
+PathGenerate::~PathGenerate() = default;
 
 void PathGenerate::reset() {
     firstTime = true;
@@ -25,16 +24,16 @@ void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v
     deltaAltitude_ = deltaALT / 1000;
 }
 
-void PathGenerate::setInitCoord(double lat, double lon, float alt, float head) {
+void PathGenerate::setInitCoord(double lat, double lon, float alt, int head) {
     lon0_ = lon;
     lat0_ = lat;
     alt0_ = alt;
     head0_ = head;
 }
 
-void PathGenerate::inspectionAngle2Heading(float polar_angle) {
+void PathGenerate::inspectionAngle2Heading(int polar_angle) {
 
-    float heading = -polar_angle + head0_;
+    int heading = -polar_angle + head0_;
     /// Conditions to keep range - 180 to 180
     if (heading < -180) { heading = heading + 360; }
     if (heading > 180) { heading = heading - 360; }
@@ -59,7 +58,7 @@ void PathGenerate::cart2gcs(double altitude) {
 }
 
 void PathGenerate::csv_save_ugcs(double *wp_array) {
-    if (firstTime == true) {
+    if (firstTime) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
         waypoint_counter = 1;
@@ -76,7 +75,7 @@ void PathGenerate::csv_save_ugcs(double *wp_array) {
 }
 
 void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
-    if (firstTime == true) {
+    if (firstTime) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
         waypoint_counter = 1;
@@ -95,7 +94,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     }
 }
 void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
-    if (firstTime == true) {
+    if (firstTime) {
         saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;
         firstTime = false;
         waypoint_counter = 1;
@@ -187,12 +186,12 @@ void PathGenerate::closeFile() {
 }
 
 bool PathGenerate::exists(const std::string &name) {
-    struct stat buffer;
+    struct stat buffer{};
     return (stat(name.c_str(), &buffer) == 0);
 }
 
 void PathGenerate::setFileName(std::string file_name) {
-    file_name_ = file_name;
+    file_name_ = std::move(file_name);
 }
 
 std::string PathGenerate::getFileName() {
@@ -204,8 +203,8 @@ std::string PathGenerate::getFolderName() {
     return file_path_;
 }
 
-void PathGenerate::setFolderName(std::string file_name) {
-    if (exists(file_name.c_str())) { file_path_ = file_name; }
+void PathGenerate::setFolderName(const std::string& file_name) {
+    if (exists(file_name)) { file_path_ = file_name; }
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }
 

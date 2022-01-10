@@ -54,7 +54,7 @@ private:
     double lat0_ = -27.605299;  // Starting latitude
     double lon0_ = -48.520547;  // Starting longitude
     float alt0_ = 3;              // Starting altitude
-    float head0_ = 30;            // Starting heading
+    int head0_ = 30;            // Starting heading
     int waypoint_counter = 1;
     /// Internal parameters
     int Y_North_ZeroDegrees_ = -90;
@@ -64,13 +64,13 @@ public:
 
     ~PathGenerate();
 
-    void setInitCoord(double lat, double lon, float alt, float head);
+    void setInitCoord(double lat, double lon, float alt, int head);
     
     void reset();
 
     void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT);
 
-    void inspectionAngle2Heading(float polar_angle);
+    void inspectionAngle2Heading(int polar_angle);
 
     void polar2cart(double r, double alpha, double r_ref, double alpha_ref);
 
@@ -92,7 +92,7 @@ public:
 
     void closeFile();
 
-    bool exists(const std::string &name);
+    static bool exists(const std::string &name);
 
     std::string getFileName();
 
@@ -100,10 +100,10 @@ public:
 
     void setFileName(std::string file_name);
 
-    void setFolderName(std::string file_name);
+    void setFolderName(const std::string& file_name);
 
    // Function to fetch data from a CSV File
-    std::vector<std::vector<std::string> > read_csv(const std::string& filepath, const std::string& delimiter);
+    static std::vector<std::vector<std::string> > read_csv(const std::string& filepath, const std::string& delimiter);
 };
 
 #endif // PATH_GEN_H

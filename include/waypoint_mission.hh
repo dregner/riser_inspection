@@ -85,10 +85,10 @@ private:
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps;
-    sensor_msgs::NavSatFix old_gps_;
+    sensor_msgs::NavSatFix old_gps;
     sensor_msgs::NavSatFix current_rtk;
     geometry_msgs::QuaternionStamped current_atti;
-    ignition::math::Quaterniond current_atti_euler_;
+    ignition::math::Quaterniond current_atti_euler;
     sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::QuaternionStamped start_attitude;
     ignition::math::Quaterniond start_atti_eul;
