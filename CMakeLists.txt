@@ -107,6 +107,9 @@ target_link_libraries(riser_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIO
 add_executable(gps_atti src/ros/read_gps_atti.cpp)
 target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
+add_executable(gps_rtk_atti src/ros/read_gps_rtk_atti.cpp)
+target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
 add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
