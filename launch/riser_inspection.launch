@@ -5,16 +5,18 @@
     <arg name="localPos_topic" default="/dji_sdk/local_position" />
     <arg name="root_directory" default="/home/vant3d/Documents" />
 
-    <node pkg="riser_inspection" type="riser_node" name="riser_inspection" output="screen">
-        <param name="gps_topic" type="string" value="$(arg gps_topic)" />
-        <param name="rtk_topic" type="string" value="$(arg rtk_topic)" />
-        <param name="attitude_topic" type="string" value="$(arg attitude_topic)" />
-        <param name="root_directory" type="string" value="$(arg root_directory)"/>
-        <param name="riser_distance" type="int" value="5"/>  <!--METERS-->
-        <param name="riser_diameter" type="int" value="300"/>   <!--MILLIMETER-->
-        <param name="horizontal_points" type="int" value="5"/>  <!--Nº of horizontal stops-->
-        <param name="vertical_points" type="int" value="4"/>    <!--Nº of vertical stops at each horizontal point-->
-        <param name="delta_H" type="int" value="15"/>           <!--DEGREES-->
-        <param name="delta_V" type="int" value="300"/>          <!--MILLIMETERS-->
+    <!-- RISER INSPECTION NODE -->
+    <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
+        <param name="gps_topic"         type="string"   value="/dji_sdk/gps_position" />
+        <param name="rtk_topic"         type="string"   value="/dji_sdk/rtk_position" />
+        <param name="attitude_topic"    type="string"   value="/dji_sdk/attitude" />
+        <param name="root_directory"    type="string"   value="/media/vant3d-media"/>
+        <param name="wait_time"         type="int"      value="6"/>     <!-- SECONDS-->
+        <param name="riser_distance"    type="int"      value="5"/>     <!--METERS-->
+        <param name="riser_diameter"    type="int"      value="300"/>   <!--MILLIMETER-->
+        <param name="horizontal_points" type="int"      value="5"/>     <!--Nº of horizontal stops-->
+        <param name="vertical_points"   type="int"      value="4"/>     <!--Nº of vertical stops at each horizontal point-->
+        <param name="delta_H"           type="int"      value="15"/>    <!--DEGREES-->
+        <param name="delta_V"           type="int"      value="300"/>   <!--MILLIMETERS-->
     </node>
 </launch>

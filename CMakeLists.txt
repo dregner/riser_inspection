@@ -5,8 +5,6 @@ set_directory_properties(PROPERTIES COMPILE_OPTIONS "-std=c++11;-Wall;-Wextra")
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 
 
-
-
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -24,27 +22,27 @@ if (OpenCV_FOUND)
     add_definitions(-DOPEN_CV_INSTALLED)
     set(OPEN_CV_3_3_0_INSTALLED TRUE)
 
-else()
-    find_package(OpenCV QUIET )
+else ()
+    find_package(OpenCV QUIET)
     if (OpenCV_FOUND)
         message(STATUS "Found OpenCV ${OpenCV_VERSION} installed in the system")
         message(STATUS " - Includes: ${OpenCV_INCLUDE_DIRS}")
         add_definitions(-DOPEN_CV_INSTALLED)
-    else()
+    else ()
         message(STATUS "Did not find OpenCV in the system")
-    endif()
-endif()
+    endif ()
+endif ()
 
 
 
 find_package(CUDA QUIET)
-if(CUDA_FOUND)
+if (CUDA_FOUND)
     message(STATUS "Found ${CUDA_VERSION} CUDA installed in the system")
     message(STATUS " - Includes: ${CUDA_INCLUDE_DIRS}")
     add_definitions(-DUSE_GPU)
-elseif()
+elseif ()
     message(STATUS "Did not find CUDA in the system")
-endif()
+endif ()
 
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -54,7 +52,6 @@ set(CMAKE_CXX_STANDARD 14)
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################
-
 
 
 add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv LocalPosition.srv)
@@ -73,35 +70,31 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIRS}
         ${DJIOSDK_INCLUDE_DIRS})
-        #${dji_sdk_node_INCLUDE_DIRS})
+#${dji_sdk_node_INCLUDE_DIRS})
 
 set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
 
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
 add_executable(path_generator src/path/create_path.cpp src/path/path_generator.cpp)
-target_link_libraries(path_generator ${catkin_LIBRARIES} )
+target_link_libraries(path_generator ${catkin_LIBRARIES})
 
-add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp )
-target_link_libraries(read_file ${catkin_LIBRARIES} )
+add_executable(read_file src/read_file_test.cpp src/path/path_generator.cpp)
+target_link_libraries(read_file ${catkin_LIBRARIES})
 
-if (NOT OPEN_CV_3_3_0_INSTALLED)
+add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
+target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
 
-	add_executable(stereo_disparity src/stereo/stereo_disparity.cpp)
-	target_link_libraries(stereo_disparity ${catkin_LIBRARIES}
-            ${DJIOSDK_LIBRARIES}            ${OpenCV_LIBS}            )
+#add_executable(stereo_calib src/stereo/stereo_calib.cpp)
+#target_link_libraries(stereo_calib ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
 
-	add_executable(stereo_calib src/stereo/stereo_calib.cpp)
-	target_link_libraries(stereo_calib ${catkin_LIBRARIES}
-            ${DJIOSDK_LIBRARIES}            ${OpenCV_LIBS}            )
-endif()
-add_executable(waypoint_mission_node src/ros/riser_inspection_wp_node.cpp src/ros/waypoint_mission.cpp  src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
-target_link_libraries(waypoint_mission_node  ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+add_executable(waypoint_mission_node src/ros/riser_inspection_wp_node.cpp src/ros/waypoint_mission.cpp src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
+target_link_libraries(waypoint_mission_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(riser_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp  src/path/path_generator.cpp)
+add_executable(riser_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
 target_link_libraries(riser_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(gps_atti src/ros/read_gps_atti.cpp)

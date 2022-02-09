@@ -286,7 +286,7 @@ WaypointControl::createWayPoint(const std::vector<std::vector<std::string>> &csv
     start_wp.altitude = (float) start_gps_location.altitude - 0.1;
     if (int16_t(RAD2DEG(start_atti_eul.Yaw()) ) < -180) {
         start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) + 360);
-    } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 90); }
+    } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw())); }
     if (int16_t(RAD2DEG(start_atti_eul.Yaw())) > 180) {
         start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) - 360);
     } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw())); }
