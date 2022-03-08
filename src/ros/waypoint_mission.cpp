@@ -13,17 +13,19 @@ void WaypointControl::initSubscribers(ros::NodeHandle &nh) {
     try {
         ros::NodeHandle nh_private("~");
 
-        std::string gps_topic, rtk_topic, attitude_topic, root_directory;
+        std::string gps_topic, rtk_topic, attitude_topic, height_topic, root_directory;
         // Topic parameters
         nh_private.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
         nh_private.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
         nh_private.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
+        nh_private.param("/riser_inspection/height_topic", height_topic, std::string("/dji_sdk/height_above_takeoff"));
         nh_private.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
         nh_private.param("/riser_inspection/wait_time", wait_time, 6);
 
         pathGenerator.setFolderName(root_directory);
         gps_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &WaypointControl::gps_callback, this);
         rtk_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &WaypointControl::rtk_callback, this);
+        height_above_takeoff_sub_ = nh.subscribe<std_msgs::Float32>(height_topic, 1, &WaypointControl::height_callback, this);
         attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic, 1,
                                                                        &WaypointControl::atti_callback, this);
 
@@ -204,6 +206,9 @@ void WaypointControl::atti_callback(const geometry_msgs::QuaternionStamped::Cons
                            current_atti.quaternion.z);
 }
 
+void WaypointControl::height_callback(const std_msgs::Float32::ConstPtr &msg) {
+    height = msg->data;
+}
 
 ServiceAck
 WaypointControl::missionAction(DJI::OSDK::MISSION_ACTION action) {

@@ -19,6 +19,7 @@
 #include <sensor_msgs/Image.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <ignition/math/Pose3.hh>
+#include <std_msgs/Float32.h>
 // Message filter includes
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -62,9 +63,7 @@ class WaypointControl {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub_;
-    ros::Subscriber rtk_sub_;
-    ros::Subscriber attitude_sub_;
+    ros::Subscriber gps_sub_, rtk_sub_, attitude_sub_, height_above_takeoff_sub_;
 
     /// Message Filter callback
     message_filters::Subscriber<sensor_msgs::Image> img_sub_filter;
@@ -102,6 +101,7 @@ private:
     int img_counter = 1, wp_counter = 1;
     int wait_time = 6;
     int voo = 0, prev_voo = voo;
+    float height;
 
 public:
     WaypointControl();
@@ -118,17 +118,17 @@ public:
 
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
-
-    void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
-
     void mission(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     bool take_photo();
+
+    void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
+    void height_callback(const std_msgs::Float32::ConstPtr &msg);
     ServiceAck missionAction(DJI::OSDK::MISSION_ACTION action);
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);

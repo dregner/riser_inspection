@@ -34,7 +34,7 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
 
 int main(int argc, char **argv) {
 
-    ros::init(argc, argv, "stereo_thread");
+    ros::init(argc, argv, "gps_atti_node");
     ros::NodeHandle nh;
 
     message_filters::Subscriber <sensor_msgs::NavSatFix> gps(nh, "/dji_sdk/gps_position", 1);

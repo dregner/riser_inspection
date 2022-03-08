@@ -1,8 +1,4 @@
 <launch>
-    <!-- STEREO SPINNAKER NODE PARAMETERS -->
-    <arg name="camera_name"               default="stereo" />
-    <arg name="run_stereo_image_proc"     default="false" />
-
     <!-- DJI SDK NODE -->
     <node pkg="dji_sdk" type="dji_sdk_node" name="dji_sdk" output="screen">
         <!-- node parameters -->
@@ -14,81 +10,5 @@
         <param name="align_time" type="bool" value="false"/>
         <param name="enc_key" type="string" value="6bd1d26f8dd897e4b6864aebd9fce5fa41070d27d2e63867f2b18c598e6c2fc3"/>
         <param name="use_broadcast" type="bool" value="false"/>
-    </node>
-    <!--&lt;!&ndash; RISER INSPECTION NODE &ndash;&gt;
-    <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
-        <param name="gps_topic"         type="string"   value="/dji_sdk/gps_position" />
-        <param name="rtk_topic"         type="string"   value="/dji_sdk/rtk_position" />
-        <param name="attitude_topic"    type="string"   value="/dji_sdk/attitude" />
-        <param name="root_directory"    type="string"   value="/media/vant3d-media"/>
-        <param name="wait_time"         type="int"      value="6"/>     &lt;!&ndash; SECONDS&ndash;&gt;
-        <param name="riser_distance"    type="int"      value="5"/>     &lt;!&ndash;METERS&ndash;&gt;
-        <param name="riser_diameter"    type="int"      value="300"/>   &lt;!&ndash;MILLIMETER&ndash;&gt;
-        <param name="horizontal_points" type="int"      value="5"/>     &lt;!&ndash;Nº of horizontal stops&ndash;&gt;
-        <param name="vertical_points"   type="int"      value="4"/>     &lt;!&ndash;Nº of vertical stops at each horizontal point&ndash;&gt;
-        <param name="delta_H"           type="int"      value="15"/>    &lt;!&ndash;DEGREES&ndash;&gt;
-        <param name="delta_V"           type="int"      value="300"/>   &lt;!&ndash;MILLIMETERS&ndash;&gt;
-    </node>-->
-    <!-- SPINNAKER STEREO NODE -->
-  <node pkg="nodelet" type="nodelet" name="camera_nodelet_manager" args="manager" />
-    <group ns="$(arg camera_name)" >
-        <group ns="left" >
-            <!-- Camera nodelet -->
-            <node pkg="nodelet" type="nodelet" name="camera_nodelet"
-                    args="load spinnaker_camera_driver/SpinnakerCameraNodelet /camera_nodelet_manager" >
-                <param name="frame_id"                        value="camera_left" />
-                <param name="serial"                          value="19290922" />
-
-                <param name="acquisition_frame_rate_enable"   value="true" />
-                <param name="acquisition_frame_rate"          value="15" />
-                <param name="image_format_color_coding"       value="BayerRG8"/>
-                <param name="auto_white_balance"              value="Continuous"/>
-                <param name="exposure_auto"                   value="Once"/>
-                <param name="exposure_time"                   value="100"/>
-                <param name="auto_exposure_time_upper_limit"  value="5000"/>
-                <param name="white_balance_blue_ratio"        value="800"/>
-                <param name="white_balance_red_ratio"         value="550"/>
-            </node>
-            <!-- Debayering nodelet -->
-            <node pkg="nodelet" type="nodelet" name="image_proc_debayer"
-                args="load image_proc/debayer /camera_nodelet_manager">
-            </node>
-        </group>
-        <group ns="right" >
-            <!-- Camera nodelet -->
-            <node pkg="nodelet" type="nodelet" name="camera_nodelet"
-                    args="load spinnaker_camera_driver/SpinnakerCameraNodelet /camera_nodelet_manager" >
-                <param name="frame_id"                        value="camera_right" />
-                <param name="serial"                          value="19355648" />
-
-                <param name="acquisition_frame_rate_enable"   value="true" />
-                <param name="acquisition_frame_rate"          value="15" />
-                <param name="image_format_color_coding"       value="BayerRG8"/>
-                <param name="auto_white_balance"              value="Continuous"/>
-                <param name="exposure_auto"                   value="Once"/>
-                <param name="exposure_time"                   value="100"/>
-                <param name="auto_exposure_time_upper_limit"  value="5000"/>
-                <param name="white_balance_blue_ratio"        value="800"/>
-                <param name="white_balance_red_ratio"         value="550"/>
-            </node>
-            <!-- Debayering nodelet -->
-            <node pkg="nodelet" type="nodelet" name="image_proc_debayer"
-                args="load image_proc/debayer /camera_nodelet_manager">
-            </node>
-        </group>
-        <!-- Stereo image processing nodelet -->
-        <group if="$(arg run_stereo_image_proc)" >
-            <node pkg="stereo_image_proc" type="stereo_image_proc" name="stereo_image_proc">
-                <param name="approximate_sync" value="true"/>
-            </node>
-        </group>
-    </group>
-    <!-- V3D STEREO NODE -->
-    <node pkg="stereo_vant" type="stereo_vant3d_node" name="stereo_vant3d" output="screen">
-        <param name="gps_topic" type="string" value="/dji_sdk/gps_position" />
-        <param name="rtk_topic" type="string" value="/dji_sdk/gps_position" />
-        <param name="imu_topic" type="string" value="/dji_sdk/imu" />
-        <param name="camera_left_topic" type="string" value="/stereo/left/image_raw" />
-        <param name="camera_right_topic" type="string" value="/stereo/right/image_raw" />
     </node>
 </launch>
