@@ -11,12 +11,13 @@ LocalController::LocalController() {
 LocalController::~LocalController() = default;
 
 void LocalController::subscribing(ros::NodeHandle &nh) {
-    std::string gps_topic, rtk_topic, attitude_topic, local_pos_topic;
+    std::string gps_topic, rtk_topic, attitude_topic, height_topic, local_pos_topic;
 
     // Topic parameters
     nh.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
     nh.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
     nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
+    nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_sdk/height_above_takeoff"));
     nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_sdk/local_position"));
 
     // Subscribe topics
@@ -26,7 +27,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
                                                                   &LocalController::attitude_callback, this);
     local_pos_sub = nh.subscribe<geometry_msgs::PointStamped>(local_pos_topic, 1,
                                                               &LocalController::local_position_callback, this);
-
+    height_sub = nh.subscribe<std_msgs::Float32>(height_topic, 1, &LocalController::height_callback, this);
     // Publish topics
     ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
     velocityPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUvelocity_yawrate", 10);
@@ -61,10 +62,10 @@ bool LocalController::local_velocity_cb(riser_inspection::LocalVelocity::Request
                                         riser_inspection::LocalVelocity::Response &res) {
 
     try {
-        res.result = local_position_velocity(req.v_x, req.v_y, req.v_z, req.v_yaw);
-        return res.result;
         ROS_INFO("Set velocity: x - %f m/s, y - %f m/s, z - %f m/s, yaw - %f rad/s", req.v_x, req.v_y, req.v_z,
                  req.v_yaw);
+        res.result = local_position_velocity(req.v_x, req.v_y, req.v_z, req.v_yaw);
+        return res.result;
     } catch (ros::Exception &e) {
         ROS_ERROR("ROS error %s", e.what());
         return false;
@@ -75,7 +76,7 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
                                            riser_inspection::LocalPosition::Response &res) {
     try {
         if (LocalController::obtain_control(true)) {
-            LocalController::setTarget(req.x, req.y, 2 * req.z, DEG2RAD(req.yaw));
+            LocalController::setTarget(req.x, req.y, 2*req.z, DEG2RAD(2*req.yaw));
             ROS_INFO("Received points x: %f, y: %f, z: %f, yaw: %f", req.x, req.y, req.z, req.yaw);
             doing_mission = true;
             return res.result = true;
@@ -88,6 +89,10 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
         ROS_ERROR("ROS error %s", e.what());
         return res.result = false;
     }
+}
+
+void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
+    height = msg->data;
 }
 
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
@@ -112,6 +117,8 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
     current_atti = *msg;
     current_atti_euler.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
                            current_atti.quaternion.z);
+    yaw_value = current_atti_euler.Yaw();
+
 
 }
 
@@ -156,33 +163,36 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
     vel_PosYaw.axes.push_back(vyaw);
     vel_PosYaw.axes.push_back(flag);
     velocityPosYawPub.publish(vel_PosYaw);
+    ROS_INFO("Changed velocity: [%f, %f, %f, %f]", vx, vy, vz, vyaw);
     return true;
+
 }
 
 void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
     xCmd = target_offset_x - current_local_pos.point.x;
     yCmd = target_offset_y - current_local_pos.point.y;
-    zCmd = target_offset_z - (use_rtk ? current_rtk.altitude : current_gps.altitude); // - current_local_pos.point.z;
+    zCmd = target_offset_z - (use_rtk ? current_rtk.altitude : height);
     yawCmd = target_yaw - current_atti_euler.Yaw();
+    float t_yaw_deg = RAD2DEG(target_yaw);
+    float c_yaw_deg = RAD2DEG(current_atti_euler.Yaw());
     sensor_msgs::Joy controlPosYaw;
     controlPosYaw.axes.push_back(xCmd);
     controlPosYaw.axes.push_back(yCmd);
     controlPosYaw.axes.push_back(zCmd);
     controlPosYaw.axes.push_back(yawCmd);
     ctrlPosYawPub.publish(controlPosYaw);
-    float zcmd = (target_offset_z/2 - current_gps.altitude);
-    float yawcmd = target_yaw - current_atti_euler.Yaw();
     // 0.1m or 10cms is the minimum error to reach target in x y and z axes.
     // This error threshold will have to change depending on aircraft/payload/wind conditions.
+    float yaw_result = target_yaw/2 - current_atti_euler.Yaw();
+    float z_result = target_offset_z/2 - (use_rtk ? current_rtk.altitude : height);
     if ((std::abs(xCmd) < 0.1) &&
         (std::abs(yCmd) < 0.1) &&
-        (std::abs(zcmd) < 0.1) &&
-        (std::abs(yawcmd) < 0.0175)) {
+        (std::abs(target_offset_z/2 - (use_rtk ? current_rtk.altitude : height)) < 0.1) &&
+        (std::abs(yaw_result) < DEG2RAD(2))) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 target_offset_x, target_offset_y, target_offset_z / 2, RAD2DEG(target_yaw));
+                 target_offset_x, target_offset_y, target_offset_z/2, RAD2DEG(target_yaw/2));
         LocalController::obtain_control(false);
         doing_mission = false;
-
     }
 }
 

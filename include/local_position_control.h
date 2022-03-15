@@ -16,6 +16,8 @@
 #include <geometry_msgs/QuaternionStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <ignition/math/Pose3.hh>
+#include <std_msgs/Float32.h>
+
 // Opencv includes
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -39,7 +41,7 @@ class LocalController {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub, rtk_sub,  attitude_sub, local_pos_sub;
+    ros::Subscriber gps_sub, rtk_sub,  attitude_sub, local_pos_sub, height_sub;
     ros::Publisher ctrlPosYawPub, velocityPosYawPub;
 
     /// XYZ service
@@ -64,6 +66,8 @@ private:
     float target_offset_y;
     float target_offset_z;
     float target_yaw;
+    float height;
+    double yaw_value;
 
     /// Internal references
     bool use_rtk = false, doing_mission = false, first_time = true;
@@ -85,6 +89,8 @@ public:
     void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
     void attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
+
+    void height_callback(const std_msgs::Float32::ConstPtr &msg);
 
     bool local_pos_service_cb(riser_inspection::LocalPosition::Request &req, riser_inspection::LocalPosition::Response &res);
 

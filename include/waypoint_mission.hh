@@ -129,6 +129,7 @@ public:
     void atti_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
     void height_callback(const std_msgs::Float32::ConstPtr &msg);
+
     ServiceAck missionAction(DJI::OSDK::MISSION_ACTION action);
 
     ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);

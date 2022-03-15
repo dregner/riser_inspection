@@ -88,7 +88,7 @@ target_link_libraries(stereo_disparity ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} 
 add_executable(name_image src/stereo/change_name.cpp)
 target_link_libraries(name_image ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(waypoint_mission_node src/ros/riser_inspection_wp_node.cpp src/ros/waypoint_mission.cpp src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
+add_executable(waypoint_mission_node src/ros/waypoint_mission_node.cpp src/ros/waypoint_mission.cpp src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
 target_link_libraries(waypoint_mission_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
