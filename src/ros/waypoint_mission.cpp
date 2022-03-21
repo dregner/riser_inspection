@@ -33,7 +33,7 @@ void WaypointControl::initSubscribers(ros::NodeHandle &nh) {
     } catch (ros::Exception &e) {
         ROS_ERROR("Subscribe topics exception: %s", e.what());
     }
-}
+}   
 
 void WaypointControl::initServices(ros::NodeHandle &nh) {
     try {

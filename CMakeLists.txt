@@ -94,9 +94,6 @@ target_link_libraries(waypoint_mission_node ${catkin_LIBRARIES} ${dji_sdk_LIBRAR
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(riser_node src/ros/riser_inspection_node.cpp src/ros/riser_inspection.cpp src/path/path_generator.cpp)
-target_link_libraries(riser_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
-
 add_executable(gps_atti src/ros/read_gps_atti.cpp)
 target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
