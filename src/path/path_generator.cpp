@@ -31,6 +31,13 @@ void PathGenerate::setInitCoord(double lat, double lon, float alt, int head) {
     head0_ = head;
 }
 
+void PathGenerate::setInitCoord_XY(double x, double y, double alt, int head) {
+    xyz[0] = x;
+    xyz[1] = y;
+    xyz[2] = alt;
+    head0_ = head;
+}
+
 void PathGenerate::inspectionAngle2Heading(int polar_angle) {
 
     int heading = -polar_angle + head0_;
@@ -70,7 +77,7 @@ void PathGenerate::csv_save_ugcs(double *wp_array) {
                   << std::setprecision(10) << wp_array[2] << ","
                   << std::setprecision(10) << wp_array[3] << ","
                   << 1 << "," << 2 << ",TRUE" << "\n";
-	    waypoint_counter++;
+        waypoint_counter++;
     }
 }
 
@@ -93,6 +100,7 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
         }
     }
 }
+
 void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
     if (firstTime) {
         saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;
@@ -101,8 +109,8 @@ void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
     }
     if (saved_wp_.is_open()) {
         saved_wp_ << waypoint_counter << ","
-                  << std::setprecision(10) << wp_array[0] << ","
-                  << std::setprecision(10) << wp_array[1] << ","
+                  << std::setprecision(10) << wp_array[0] + xyz[0] << ","
+                  << std::setprecision(10) << wp_array[1] + xyz[1] << ","
                   << std::setprecision(3) << z << ","
                   << std::setprecision(3) << yaw << "\n";
         waypoint_counter++;
@@ -128,7 +136,8 @@ void PathGenerate::createInspectionPoints(int csv_type) {
     openFile();
     findCenterHeading(deltaAngle_, angleCount_);
     int count_wp = 1;
-    float initial = alt0_; // initiate altitude value
+    float initial = csv_type == 2 ? xyz[2] : alt0_;
+
     float vertical; // Set if will move drone down or up INITIALLY DOWN.
     for (int i = 0; i < angleCount_; i++) {
         if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
@@ -203,7 +212,7 @@ std::string PathGenerate::getFolderName() {
     return file_path_;
 }
 
-void PathGenerate::setFolderName(const std::string& file_name) {
+void PathGenerate::setFolderName(const std::string &file_name) {
     if (exists(file_name)) { file_path_ = file_name; }
     else { std::cout << "Cannot change! Folder does not exist!" << std::endl; }
 }

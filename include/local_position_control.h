@@ -35,13 +35,16 @@
 #include <dji_sdk/CameraAction.h>
 #include <dji_sdk/dji_sdk.h>
 
+#include <path_generator.hh>
+
 #define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
 #define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
+
 class LocalController {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub, rtk_sub,  attitude_sub, local_pos_sub, height_sub;
+    ros::Subscriber gps_sub, rtk_sub, attitude_sub, local_pos_sub, height_sub;
     ros::Publisher ctrlPosYawPub, velocityPosYawPub;
 
     /// XYZ service
@@ -58,19 +61,20 @@ private:
     geometry_msgs::PointStamped current_local_pos;
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
-    sensor_msgs::NavSatFix start_gps;
-    geometry_msgs::QuaternionStamped start_attitude;
-    ignition::math::Quaterniond start_atti_eul;
+
 
     float target_offset_x;
     float target_offset_y;
     float target_offset_z;
     float target_yaw;
-    float height;
-    double yaw_value;
+    float rpa_height;
 
     /// Internal references
     bool use_rtk = false, doing_mission = false, first_time = true;
+
+    PathGenerate pathGenerator;
+    std::vector<std::vector<float>> waypoint_l;
+
 public:
     LocalController();
 
@@ -92,15 +96,20 @@ public:
 
     void height_callback(const std_msgs::Float32::ConstPtr &msg);
 
-    bool local_pos_service_cb(riser_inspection::LocalPosition::Request &req, riser_inspection::LocalPosition::Response &res);
+    bool local_pos_service_cb(riser_inspection::LocalPosition::Request &req,
+                              riser_inspection::LocalPosition::Response &res);
 
-    bool local_velocity_cb(riser_inspection::LocalVelocity::Request &req, riser_inspection::LocalVelocity::Response &res);
+    bool local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
+                                   riser_inspection::LocalVelocity::Response &res);
 
     bool obtain_control(bool ask);
 
-    bool local_position_velocity(float vx, float vy, float vz, float vyaw) ;
+    bool local_position_velocity(float vx, float vy, float vz, float vyaw);
 
     void local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd);
+
+    bool generate_WP();
+
 };
 
 #ifndef RISER_INSPECTION_LOCAL_POSITION_CONTROL_H

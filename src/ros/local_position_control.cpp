@@ -39,7 +39,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
     local_position_service = nh.advertiseService("/local_position/set_position",
                                                  &LocalController::local_pos_service_cb, this);
-    local_velocity_service = nh.advertiseService("/local_position/set_velocity", &LocalController::local_velocity_cb,
+    local_velocity_service = nh.advertiseService("/local_position/set_velocity", &LocalController::local_velocity_service_cb,
                                                  this);
 
 
@@ -58,9 +58,9 @@ bool LocalController::obtain_control(bool ask) {
     return true;
 }
 
-bool LocalController::local_velocity_cb(riser_inspection::LocalVelocity::Request &req,
-                                        riser_inspection::LocalVelocity::Response &res) {
-
+bool LocalController::local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
+                                                riser_inspection::LocalVelocity::Response &res) {
+    LocalController::generate_WP();
     try {
         ROS_INFO("Set velocity: x - %f m/s, y - %f m/s, z - %f m/s, yaw - %f rad/s", req.v_x, req.v_y, req.v_z,
                  req.v_yaw);
@@ -76,7 +76,7 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
                                            riser_inspection::LocalPosition::Response &res) {
     try {
         if (LocalController::obtain_control(true)) {
-            LocalController::setTarget(req.x, req.y, 2*req.z, DEG2RAD(2*req.yaw));
+            LocalController::setTarget(req.x, req.y, 2 * req.z, DEG2RAD(2 * req.yaw));
             ROS_INFO("Received points x: %f, y: %f, z: %f, yaw: %f", req.x, req.y, req.z, req.yaw);
             doing_mission = true;
             return res.result = true;
@@ -92,7 +92,7 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
 }
 
 void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
-    height = msg->data;
+    rpa_height = msg->data;
 }
 
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
@@ -117,8 +117,6 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
     current_atti = *msg;
     current_atti_euler.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
                            current_atti.quaternion.z);
-    yaw_value = current_atti_euler.Yaw();
-
 
 }
 
@@ -163,6 +161,7 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
     vel_PosYaw.axes.push_back(vyaw);
     vel_PosYaw.axes.push_back(flag);
     velocityPosYawPub.publish(vel_PosYaw);
+    ros::spinOnce();
     ROS_INFO("Changed velocity: [%f, %f, %f, %f]", vx, vy, vz, vyaw);
     return true;
 
@@ -171,7 +170,7 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
 void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
     xCmd = target_offset_x - current_local_pos.point.x;
     yCmd = target_offset_y - current_local_pos.point.y;
-    zCmd = target_offset_z - (use_rtk ? current_rtk.altitude : height);
+    zCmd = target_offset_z - (use_rtk ? current_rtk.altitude : rpa_height);
     yawCmd = target_yaw - current_atti_euler.Yaw();
     float t_yaw_deg = RAD2DEG(target_yaw);
     float c_yaw_deg = RAD2DEG(current_atti_euler.Yaw());
@@ -181,18 +180,51 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
     controlPosYaw.axes.push_back(zCmd);
     controlPosYaw.axes.push_back(yawCmd);
     ctrlPosYawPub.publish(controlPosYaw);
-    // 0.1m or 10cms is the minimum error to reach target in x y and z axes.
-    // This error threshold will have to change depending on aircraft/payload/wind conditions.
-    float yaw_result = target_yaw/2 - current_atti_euler.Yaw();
-    float z_result = target_offset_z/2 - (use_rtk ? current_rtk.altitude : height);
+    /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
+     This error threshold will have to change depending on aircraft/payload/wind conditions. */
+    float yaw_result = target_yaw / 2 - current_atti_euler.Yaw();
+    float z_result = target_offset_z / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
+
     if ((std::abs(xCmd) < 0.1) &&
         (std::abs(yCmd) < 0.1) &&
-        (std::abs(target_offset_z/2 - (use_rtk ? current_rtk.altitude : height)) < 0.1) &&
-        (std::abs(yaw_result) < DEG2RAD(2))) {
+        (std::abs(target_offset_z / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
+        (std::abs(target_yaw / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 target_offset_x, target_offset_y, target_offset_z/2, RAD2DEG(target_yaw/2));
+                 target_offset_x, target_offset_y, target_offset_z / 2, RAD2DEG(target_yaw / 2));
         LocalController::obtain_control(false);
         doing_mission = false;
+    }
+}
+
+bool LocalController::generate_WP() {
+    /** Initial setting and parameters to generate trajectory*/
+    pathGenerator.reset(); // clear pathGen
+    waypoint_l.clear(); // clear waypoint list
+    int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
+    std::string root_directory;
+    nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
+    nh_.param("/riser_inspection/riser_diameter", riser_diameter, 300);
+    nh_.param("/riser_inspection/horizontal_points", h_points, 5);
+    nh_.param("/riser_inspection/vertical_points", v_points, 4);
+    nh_.param("/riser_inspection/delta_H", delta_h, 15);
+    nh_.param("/riser_inspection/delta_V", delta_v, 300);
+    nh_.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
+    /** Setting intial parameters to create waypoints */
+    pathGenerator.setFolderName(root_directory);
+    pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
+                                     (float) delta_v);
+    /** Define start positions to create waypoints */
+    sensor_msgs::NavSatFix gps_path_gen = (use_rtk ? current_rtk : current_gps);
+    pathGenerator.setInitCoord(gps_path_gen.latitude, gps_path_gen.longitude, rpa_height,
+                               (int) RAD2DEG(current_atti_euler.Yaw()));
+    try {
+        pathGenerator.createInspectionPoints(2);
+        ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
+                 pathGenerator.getFileName().c_str());
+        return true;
+    } catch (ros::Exception &e) {
+        ROS_WARN("ROS error %s", e.what());
+        return false;
     }
 }
 

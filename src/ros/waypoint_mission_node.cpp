@@ -1,7 +1,7 @@
 #include <waypoint_mission.hh>
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "riser_inspection_wp");
+    ros::init(argc, argv, "waypoint_misison_node");
     WaypointControl riserInspection;
 //    ros::spin();
     while(ros::ok()) {
