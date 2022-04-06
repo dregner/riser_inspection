@@ -71,6 +71,7 @@ private:
 
     /// Internal references
     bool use_rtk = false, doing_mission = false, first_time = true;
+    int wp_n = 1;
 
     PathGenerate pathGenerator;
     std::vector<std::vector<float>> waypoint_l;
@@ -107,6 +108,12 @@ public:
     bool local_position_velocity(float vx, float vy, float vz, float vyaw);
 
     void local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd);
+
+    void local_position_ctrl_WP(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n);
+
+    void elapse_control_WP(bool mission);
+
+    void elapse_control(bool mission);
 
     bool generate_WP();
 

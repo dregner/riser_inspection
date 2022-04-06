@@ -39,7 +39,8 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
     local_position_service = nh.advertiseService("/local_position/set_position",
                                                  &LocalController::local_pos_service_cb, this);
-    local_velocity_service = nh.advertiseService("/local_position/set_velocity", &LocalController::local_velocity_service_cb,
+    local_velocity_service = nh.advertiseService("/local_position/set_velocity",
+                                                 &LocalController::local_velocity_service_cb,
                                                  this);
 
 
@@ -121,15 +122,30 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 }
 
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
+    current_local_pos = *msg;
+    elapse_control(doing_mission);
+}
+
+void LocalController::elapse_control(bool mission) {
     static ros::Time start_time = ros::Time::now();
     ros::Duration elapsed_time = ros::Time::now() - start_time;
-    current_local_pos = *msg;
     double xCmd, yCmd, zCmd, yawCmd;
-    // Down sampled to 20Hz loop
-    if (doing_mission) {
+    if (mission) {
         if (elapsed_time > ros::Duration(1 / 20)) {
             start_time = ros::Time::now();
             local_position_ctrl(xCmd, yCmd, zCmd, yawCmd);
+        }
+    }
+}
+
+void LocalController::elapse_control_WP(bool mission) {
+    static ros::Time start_time = ros::Time::now();
+    ros::Duration elapsed_time = ros::Time::now() - start_time;
+    double xCmd, yCmd, zCmd, yawCmd;
+    if (mission) {
+        if (elapsed_time > ros::Duration(1 / 20)) {
+            start_time = ros::Time::now();
+            local_position_ctrl_WP(xCmd, yCmd, zCmd, yawCmd, wp_n);
         }
     }
 }
@@ -196,10 +212,42 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
     }
 }
 
+void LocalController::local_position_ctrl_WP(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n) {
+    xCmd = waypoint_l[wp_n][0] - current_local_pos.point.x;
+    yCmd = waypoint_l[wp_n][1] - current_local_pos.point.y;
+    zCmd = waypoint_l[wp_n][2] - (use_rtk ? current_rtk.altitude : rpa_height);
+    yawCmd = waypoint_l[wp_n][3] - current_atti_euler.Yaw();
+    float t_yaw_deg = RAD2DEG(target_yaw);
+    float c_yaw_deg = RAD2DEG(current_atti_euler.Yaw());
+    sensor_msgs::Joy controlPosYaw;
+    controlPosYaw.axes.push_back(xCmd);
+    controlPosYaw.axes.push_back(yCmd);
+    controlPosYaw.axes.push_back(zCmd);
+    controlPosYaw.axes.push_back(yawCmd);
+    ctrlPosYawPub.publish(controlPosYaw);
+    /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
+     This error threshold will have to change depending on aircraft/payload/wind conditions. */
+    float yaw_result = waypoint_l[waypoint_n][2] / 2 - current_atti_euler.Yaw();
+    float z_result = waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
+
+    if ((std::abs(xCmd) < 0.1) &&
+        (std::abs(yCmd) < 0.1) &&
+        (std::abs(waypoint_l[waypoint_n][2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
+        (std::abs(waypoint_l[waypoint_n][3] / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+        ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
+                 target_offset_x, target_offset_y, target_offset_z / 2, RAD2DEG(target_yaw / 2));
+        if (wp_n > waypoint_l.size()) {
+            LocalController::obtain_control(false);
+            doing_mission = false;
+        } else { wp_n++; }
+    }
+}
+
 bool LocalController::generate_WP() {
     /** Initial setting and parameters to generate trajectory*/
     pathGenerator.reset(); // clear pathGen
-    waypoint_l.clear(); // clear waypoint list
+    waypoint_l.clear(); // clear waypoint list]
+    wp_n = 1;
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     std::string root_directory;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 5);
