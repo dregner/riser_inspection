@@ -28,6 +28,7 @@
 #include <iostream>
 #include <riser_inspection/LocalPosition.h>
 #include <riser_inspection/LocalVelocity.h>
+#include <riser_inspection/wpStartMission.h>
 // DJI SDK includes
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
@@ -50,6 +51,8 @@ private:
     /// XYZ service
     ros::ServiceServer local_position_service;
     ros::ServiceServer local_velocity_service;
+    ros::ServiceServer start_mission_service;
+
     /// DJI Services
     ros::ServiceClient sdk_ctrl_authority_service;
     ros::ServiceClient camera_action_service;
@@ -71,6 +74,7 @@ private:
 
     /// Internal references
     bool use_rtk = false, doing_mission = false, first_time = true;
+    bool list = false;
     int wp_n = 1;
 
     PathGenerate pathGenerator;
@@ -103,6 +107,9 @@ public:
     bool local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
                                    riser_inspection::LocalVelocity::Response &res);
 
+    bool start_mission_service_cb(riser_inspection::wpStartMission::Request &req,
+                                  riser_inspection::wpStartMission::Response &res);
+
     bool obtain_control(bool ask);
 
     bool local_position_velocity(float vx, float vy, float vz, float vyaw);
@@ -116,6 +123,7 @@ public:
     void elapse_control(bool mission);
 
     bool generate_WP();
+
 
 };
 

@@ -109,8 +109,8 @@ void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
     }
     if (saved_wp_.is_open()) {
         saved_wp_ << waypoint_counter << ","
-                  << std::setprecision(10) << wp_array[0] + xyz[0] << ","
-                  << std::setprecision(10) << wp_array[1] + xyz[1] << ","
+                  << std::setprecision(10) << wp_array[1] + xyz[0] << ","
+                  << std::setprecision(10) << wp_array[0] + xyz[1] << ","
                   << std::setprecision(3) << z << ","
                   << std::setprecision(3) << yaw << "\n";
         waypoint_counter++;
