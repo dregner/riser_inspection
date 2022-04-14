@@ -99,7 +99,7 @@ bool LocalController::start_mission_service_cb(riser_inspection::wpStartMission:
     generate_WP();
     doing_mission = true;
     res.result = obtain_control(true);
-    list = true;
+    use_wp_list = true;
     return res.result;
 }
 
@@ -134,7 +134,7 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
     current_local_pos = *msg;
-    list ?  elapse_control_WP(doing_mission): elapse_control(doing_mission);
+    use_wp_list ?  elapse_control_WP(doing_mission): elapse_control(doing_mission);
 //    elapse_control(doing_mission);
 }
 
@@ -164,10 +164,10 @@ void LocalController::elapse_control_WP(bool mission) {
 }
 
 void LocalController::setTarget(float x, float y, float z, float yaw) {
-    target_offset_x = x;
-    target_offset_y = y;
-    target_offset_z = z;
-    target_yaw = yaw;
+    target_offset[0] = x;
+    target_offset[1] = y;
+    target_offset[2] = z;
+    target_offset[3] = yaw;
 }
 
 bool LocalController::set_local_position() {
@@ -197,12 +197,11 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
 }
 
 void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
-    xCmd = target_offset_x - current_local_pos.point.x;
-    yCmd = target_offset_y - current_local_pos.point.y;
-    zCmd = target_offset_z - (use_rtk ? current_rtk.altitude : rpa_height);
-    yawCmd = target_yaw - current_atti_euler.Yaw();
-    float t_yaw_deg = RAD2DEG(target_yaw);
-    float c_yaw_deg = RAD2DEG(current_atti_euler.Yaw());
+    xCmd = target_offset[0] - current_local_pos.point.x;
+    yCmd = target_offset[1] - current_local_pos.point.y;
+    zCmd = target_offset[2] - (use_rtk ? current_rtk.altitude : rpa_height);
+    yawCmd = target_offset[3] - current_atti_euler.Yaw();
+
     sensor_msgs::Joy controlPosYaw;
     controlPosYaw.axes.push_back(xCmd);
     controlPosYaw.axes.push_back(yCmd);
@@ -211,15 +210,15 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
     ctrlPosYawPub.publish(controlPosYaw);
     /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
      This error threshold will have to change depending on aircraft/payload/wind conditions. */
-    float yaw_result = target_yaw / 2 - current_atti_euler.Yaw();
-    float z_result = target_offset_z / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
+    float yaw_result = target_offset[3] / 2 - current_atti_euler.Yaw();
+    float z_result = target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
 
     if ((std::abs(xCmd) < 0.1) &&
         (std::abs(yCmd) < 0.1) &&
-        (std::abs(target_offset_z / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
-        (std::abs(target_yaw / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+        (std::abs(target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
+        (std::abs(target_offset[3] / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 target_offset_x, target_offset_y, target_offset_z / 2, RAD2DEG(target_yaw / 2));
+                 target_offset[0], target_offset[1], target_offset[2] / 2, RAD2DEG(target_offset[3] / 2));
         LocalController::obtain_control(false);
         doing_mission = false;
     }
@@ -230,8 +229,6 @@ void LocalController::local_position_ctrl_WP(double &xCmd, double &yCmd, double 
     yCmd = waypoint_l[waypoint_n][2] - current_local_pos.point.y;
     zCmd = waypoint_l[waypoint_n][3] - (use_rtk ? current_rtk.altitude : rpa_height);
     yawCmd = DEG2RAD(waypoint_l[waypoint_n][4]) - current_atti_euler.Yaw();
-    float t_yaw_deg = RAD2DEG(target_yaw);
-    float c_yaw_deg = RAD2DEG(current_atti_euler.Yaw());
     sensor_msgs::Joy controlPosYaw;
     controlPosYaw.axes.push_back(xCmd);
     controlPosYaw.axes.push_back(yCmd);
@@ -253,6 +250,7 @@ void LocalController::local_position_ctrl_WP(double &xCmd, double &yCmd, double 
         if (waypoint_n >= (int) waypoint_l.size()-1) {
             LocalController::obtain_control(false);
             doing_mission = false;
+            use_wp_list = false;
         } else {
             ros::Duration(2).sleep();
             wp_n++;
@@ -274,6 +272,7 @@ bool LocalController::generate_WP() {
     nh_.param("/riser_inspection/delta_H", delta_h, 15);
     nh_.param("/riser_inspection/delta_V", delta_v, 300);
     nh_.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
+
     /** Setting intial parameters to create waypoints */
     pathGenerator.setFolderName(root_directory);
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,

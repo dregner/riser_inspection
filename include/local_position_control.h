@@ -65,16 +65,12 @@ private:
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
 
-
-    float target_offset_x;
-    float target_offset_y;
-    float target_offset_z;
-    float target_yaw;
+    float target_offset[4];
     float rpa_height;
 
     /// Internal references
     bool use_rtk = false, doing_mission = false, first_time = true;
-    bool list = false;
+    bool use_wp_list = false;
     int wp_n = 1;
 
     PathGenerate pathGenerator;
