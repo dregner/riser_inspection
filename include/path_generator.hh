@@ -55,6 +55,7 @@ private:
     double lon0_ = -48.520547;  // Starting longitude
     float alt0_ = 3;              // Starting altitude
     int head0_ = 30;            // Starting heading
+    double xyz[3] {0,0,0};
     int waypoint_counter = 1;
     /// Internal parameters
     int Y_North_ZeroDegrees_ = -90;
@@ -65,7 +66,9 @@ public:
     ~PathGenerate();
 
     void setInitCoord(double lat, double lon, float alt, int head);
-    
+
+    void setInitCoord_XY(double x, double y, double alt, int head);
+
     void reset();
 
     void setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT);

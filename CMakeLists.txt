@@ -73,7 +73,9 @@ include_directories(
 #${dji_sdk_node_INCLUDE_DIRS})
 
 set(CMAKE_CXX_TARGET_INCLUDE_PATH "/usr/include/ignition/math4")
-
+install(DIRECTORY include DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY launch  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
+install(DIRECTORY srv     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/srv)
 ## Declare a C++ library
 ## Specify libraries to link a library or executable target against
 add_executable(path_generator src/path/create_path.cpp src/path/path_generator.cpp)
@@ -94,7 +96,7 @@ target_link_libraries(change_txt ${catkin_LIBRARIES})
 add_executable(waypoint_mission_node src/ros/waypoint_mission_node.cpp src/ros/waypoint_mission.cpp src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
 target_link_libraries(waypoint_mission_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp)
+add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp src/path/path_generator.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(gps_atti src/ros/read_gps_atti.cpp)
@@ -106,9 +108,7 @@ target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} igni
 add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-install(DIRECTORY include
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        )
+
 
 install(TARGETS waypoint_mission_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -116,6 +116,3 @@ install(TARGETS waypoint_mission_node
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
         )
 
-install(DIRECTORY launch
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-        )

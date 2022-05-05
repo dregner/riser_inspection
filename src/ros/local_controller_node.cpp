@@ -3,7 +3,7 @@
 
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "local_pos_controller");
+    ros::init(argc, argv, "local_controller_node");
     LocalController local_controller;
 //    ros::spin();
     while(ros::ok()) {

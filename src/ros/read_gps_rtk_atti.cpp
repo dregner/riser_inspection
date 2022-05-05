@@ -2,7 +2,6 @@
 // Created by vant3d on 09/12/2021.
 //
 
-#include <opencv2/highgui/highgui.hpp>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <ros/ros.h>
