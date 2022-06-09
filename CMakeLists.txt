@@ -102,6 +102,9 @@ target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRAR
 add_executable(gps_atti src/ros/read_gps_atti.cpp)
 target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
+add_executable(save_gps_atti src/ros/save_gps_atti.cpp)
+target_link_libraries(save_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
 add_executable(gps_rtk_atti src/ros/read_gps_rtk_atti.cpp)
 target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
@@ -111,6 +114,12 @@ target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} i
 
 
 install(TARGETS waypoint_mission_node
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
+
+install(TARGETS local_controller_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
