@@ -83,25 +83,33 @@ private:
     ros::ServiceClient stereo_acquisition;
 
     /// Messages from GPS, RTK and Attitude
+    // store old data to determine photo action
     sensor_msgs::NavSatFix current_gps;
     sensor_msgs::NavSatFix old_gps;
+    std_msgs::Float32 old_height;
+
+    // store current values of rtk, atti and gps
     sensor_msgs::NavSatFix current_rtk;
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
+    std_msgs::Float32::ConstPtr current_height;
+
+    // store initial values when start mission service initilized
     sensor_msgs::NavSatFix start_gps_location;
     geometry_msgs::QuaternionStamped start_attitude;
     ignition::math::Quaterniond start_atti_eul;
-    /// Messages from camera image
-    sensor_msgs::Image gimbal_image;
 
+    // List values
     PathGenerate pathGenerator;
      std::vector<std::vector<float>> waypoint_l;
-
+    // Internal info
     bool use_rtk = false, doing_mission = false;
     int img_counter = 1, wp_counter = 1;
     int wait_time = 6;
-    int voo = 0, prev_voo = voo;
-    float height;
+    int voo = 0;
+    double h_error, v_error;
+
+
 
 public:
     WaypointControl();
@@ -118,7 +126,7 @@ public:
 
     bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
                                 riser_inspection::wpStartMission::Response &res);
-    void mission(const sensor_msgs::NavSatFix::ConstPtr &msg);
+    void mission(const sensor_msgs::NavSatFix::ConstPtr &gps_msg, const std_msgs::Float32::ConstPtr &height_msg);
 
     bool take_photo();
 

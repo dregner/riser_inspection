@@ -107,7 +107,8 @@ bool WaypointControl::folders_serviceCB(riser_inspection::wpFolders::Request &re
     if (pathGenerator.exists(req.file_path)) {
         ROS_INFO("Waypoint folder changed %s/%s", req.file_path.c_str(), pathGenerator.getFileName().c_str());
         pathGenerator.setFolderName(req.file_path);
-        res.result = true;
+        res.result = true;    nh_.param("/riser_inspection/horizontal_error", h_error, 0.2);
+    nh_.param("/riser_inspeciton/vertical_error", v_error, 0.1);
         return res.result;
     } else {
         ROS_ERROR("Folder does not exist, file will be written in %s/%s", pathGenerator.getFolderName().c_str(),
@@ -134,6 +135,8 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
     nh_.param("/riser_inspection/vertical_points", v_points, 4);
     nh_.param("/riser_inspection/delta_H", delta_h, 15);
     nh_.param("/riser_inspection/delta_V", delta_v, 300);
+    nh_.param("/riser_inspection/horizontal_error", h_error, 0.2);
+    nh_.param("/riser_inspection/vertical_error", v_error, 0.1);
 
     // Setting intial parameters to create waypoints
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
@@ -143,6 +146,7 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
 
 
     start_attitude = current_atti;
+    start_gps_location.altitude = current_height->data;
     start_atti_eul.Set(start_attitude.quaternion.w, start_attitude.quaternion.x, start_attitude.quaternion.y,
                        start_attitude.quaternion.z);
     // Define start positions to create waypoints
@@ -185,18 +189,21 @@ bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::R
     }
 }
 
+void WaypointControl::height_callback(const std_msgs::Float32::ConstPtr &msg) {
+    current_height = msg;
+}
 
 void WaypointControl::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
     if (!use_rtk) {
-        mission(msg);
+        mission(msg, current_height);
     }
 }
 
 void WaypointControl::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_rtk = *msg;
     if (use_rtk) {
-        mission(msg);
+        mission(msg, current_height);
     }
 }
 
@@ -206,9 +213,7 @@ void WaypointControl::atti_callback(const geometry_msgs::QuaternionStamped::Cons
                            current_atti.quaternion.z);
 }
 
-void WaypointControl::height_callback(const std_msgs::Float32::ConstPtr &msg) {
-    height = msg->data;
-}
+
 
 ServiceAck
 WaypointControl::missionAction(DJI::OSDK::MISSION_ACTION action) {
@@ -288,7 +293,7 @@ WaypointControl::createWayPoint(const std::vector<std::vector<std::string>> &csv
     start_wp.index = 0;
     start_wp.latitude = start_gps_location.latitude;
     start_wp.longitude = start_gps_location.longitude;
-    start_wp.altitude = (float) start_gps_location.altitude - 0.1;
+    start_wp.altitude = (float) start_gps_location.altitude;
     if (int16_t(RAD2DEG(start_atti_eul.Yaw()) ) < -180) {
         start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw()) + 360);
     } else { start_wp.yaw = int16_t(RAD2DEG(start_atti_eul.Yaw())); }
@@ -308,7 +313,7 @@ WaypointControl::createWayPoint(const std::vector<std::vector<std::string>> &csv
         wp.index = std::stoi(csv_file[k][0]);
         wp.latitude = std::stod(csv_file[k][1]);
         wp.longitude = std::stod(csv_file[k][2]);
-        wp.altitude = std::stof(csv_file[k][3]) - 0.1;
+        wp.altitude = std::stof(csv_file[k][3]);
         wp.yaw = std::stof(csv_file[k][4]);
         waypoint_l.push_back({(float) std::stoi(csv_file[k][0]), (float) std::stod(csv_file[k][1]),
                               (float) std::stod(csv_file[k][2]), (float) std::stof(csv_file[k][3])});
@@ -425,27 +430,28 @@ void WaypointControl::setWaypointInitDefaults(dji_sdk::MissionWaypointTask &wayp
     waypointTask.gimbal_pitch_mode = dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
 }
 
-void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
+void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &gps_msg, const std_msgs::Float32::ConstPtr &height_msg) {
     if (doing_mission) {
-        if (std::abs(msg->altitude - old_gps.altitude) > 0.15) {
+        if (std::abs(height_msg->data - old_gps.altitude) > 0.15) {
             if (missionAction(MISSION_ACTION::PAUSE).result) {
-                ROS_INFO("Wait Altitude - %f m", msg->altitude);
+                ROS_INFO("Wait Altitude - %f m", gps_msg->altitude);
 
                 if (take_photo()) {
                     ROS_INFO("TOOK PHOTO- %i", img_counter);
                     ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
-                old_gps = *msg;
+                old_gps = *gps_msg;
+                old_height = *height_msg;
                 img_counter++;
             }
         }
-        if (std::abs(msg->latitude - waypoint_l[wp_counter][1]) < 3e-6 &&
-            std::abs(msg->longitude - waypoint_l[wp_counter][2]) < 3e-6 &&
-            std::abs(msg->altitude - waypoint_l[wp_counter][3]) < 0.03) {
+        if (std::abs(gps_msg->latitude - waypoint_l[wp_counter][1]) < h_error &&
+            std::abs(gps_msg->longitude - waypoint_l[wp_counter][2]) < h_error &&
+            std::abs(height_msg->data - waypoint_l[wp_counter][3]) < v_error) {
             ROS_INFO("REACH WP %i", wp_counter);
-            ROS_INFO("Current: lat: %f\tlon: %f\talt: %f", msg->latitude, msg->longitude,
-                     msg->altitude);
+            ROS_INFO("Current: lat: %f\tlon: %f\talt: %f", gps_msg->latitude, gps_msg->longitude,
+                     height_msg->data);
             ROS_INFO("WP - %f: lat: %f\tlon: %f\talt: %f", waypoint_l[wp_counter][0], waypoint_l[wp_counter][1],
                      waypoint_l[wp_counter][2], waypoint_l[wp_counter][3]);
             if (missionAction(MISSION_ACTION::PAUSE).result) {
@@ -458,14 +464,15 @@ void WaypointControl::mission(const sensor_msgs::NavSatFix::ConstPtr &msg) {
                     ros::Duration(wait_time).sleep();
                 }
                 missionAction(MISSION_ACTION::RESUME);
-                old_gps = *msg;
+                old_gps = *gps_msg;
+                old_height = *height_msg;
                 img_counter++;
                 wp_counter++;
             }
         }
-        if (std::abs(msg->latitude - waypoint_l[waypoint_l.size() - 2][1]) < 1e-5 &&
-            std::abs(msg->longitude - waypoint_l[waypoint_l.size() - 2][2]) < 1e-5 &&
-            std::abs(msg->altitude - waypoint_l[waypoint_l.size() - 2][3]) < 0.04) {
+        if (std::abs(gps_msg->latitude - waypoint_l[waypoint_l.size() - 2][1]) < h_error &&
+            std::abs(gps_msg->longitude - waypoint_l[waypoint_l.size() - 2][2]) < h_error &&
+            std::abs(height_msg->data - waypoint_l[waypoint_l.size() - 2][3]) < v_error) {
             ROS_INFO("FINISHED MISSION");
             doing_mission = false;
 

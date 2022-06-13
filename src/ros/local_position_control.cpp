@@ -19,7 +19,8 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
     nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_sdk/height_above_takeoff"));
     nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_sdk/local_position"));
-
+    nh.param("/riser_inspection/horizontal_error", h_error, 0.2);
+    nh.param("/riser_inspection/vertical_error", v_error, 0.1);
     // Subscribe topics
     gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
     rtk_sub = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &LocalController::rtk_callback, this);
@@ -134,8 +135,7 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
     current_local_pos = *msg;
-    use_wp_list ?  elapse_control_WP(doing_mission): elapse_control(doing_mission);
-//    elapse_control(doing_mission);
+    use_wp_list ? elapse_control_mission(doing_mission) : elapse_control(doing_mission);
 }
 
 
@@ -151,14 +151,14 @@ void LocalController::elapse_control(bool mission) {
     }
 }
 
-void LocalController::elapse_control_WP(bool mission) {
+void LocalController::elapse_control_mission(bool mission) {
     static ros::Time start_time = ros::Time::now();
     ros::Duration elapsed_time = ros::Time::now() - start_time;
     double xCmd, yCmd, zCmd, yawCmd;
     if (mission) {
         if (elapsed_time > ros::Duration(1 / 20)) {
             start_time = ros::Time::now();
-            local_position_ctrl_WP(xCmd, yCmd, zCmd, yawCmd, wp_n);
+            local_position_ctrl_mission(xCmd, yCmd, zCmd, yawCmd, wp_n);
         }
     }
 }
@@ -213,9 +213,9 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
     float yaw_result = target_offset[3] / 2 - current_atti_euler.Yaw();
     float z_result = target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
 
-    if ((std::abs(xCmd) < 0.1) &&
-        (std::abs(yCmd) < 0.1) &&
-        (std::abs(target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
+    if ((std::abs(xCmd) < h_error) &&
+        (std::abs(yCmd) < h_error) &&
+        (std::abs(target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
         (std::abs(target_offset[3] / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
                  target_offset[0], target_offset[1], target_offset[2] / 2, RAD2DEG(target_offset[3] / 2));
@@ -224,7 +224,7 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
     }
 }
 
-void LocalController::local_position_ctrl_WP(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n) {
+void LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n) {
     xCmd = waypoint_l[waypoint_n][1] - current_local_pos.point.x;
     yCmd = waypoint_l[waypoint_n][2] - current_local_pos.point.y;
     zCmd = waypoint_l[waypoint_n][3] - (use_rtk ? current_rtk.altitude : rpa_height);
@@ -240,9 +240,9 @@ void LocalController::local_position_ctrl_WP(double &xCmd, double &yCmd, double 
     float yaw_result = waypoint_l[waypoint_n][2] / 2 - current_atti_euler.Yaw();
     float z_result = waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
 
-    if ((std::abs(xCmd) < 0.1) &&
-        (std::abs(yCmd) < 0.1) &&
-        (std::abs(waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < 0.1) &&
+    if ((std::abs(xCmd) < h_error) &&
+        (std::abs(yCmd) < h_error) &&
+        (std::abs(waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
         (std::abs(DEG2RAD(waypoint_l[waypoint_n][4]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", (int) waypoint_l[waypoint_n][0],
                  waypoint_l[waypoint_n][1], waypoint_l[waypoint_n][2], waypoint_l[waypoint_n][3] / 2,

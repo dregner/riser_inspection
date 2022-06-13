@@ -16,5 +16,7 @@
         <param name="vertical_points"   type="int"      value="4"/>     <!--Nº of vertical stops at each horizontal point-->
         <param name="delta_H"           type="int"      value="15"/>    <!--DEGREES-->
         <param name="delta_V"           type="int"      value="300"/>   <!--MILLIMETERS-->
+        <param name="vertical_error"    type="double"   value="0.1"/>   <!-- Error value to verify if RPA reach vertical desired position METERS-->
+        <param name="horizontal_error"    type="double"   value="0.3"/>   <!--Error value to verify if RPA reach horizontal desired position METERS-->
     </node>
 </launch>
