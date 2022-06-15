@@ -64,24 +64,7 @@ void PathGenerate::cart2gcs(double altitude) {
     waypoint_[2] = altitude;
 }
 
-void PathGenerate::csv_save_ugcs(double *wp_array) {
-    if (firstTime) {
-        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
-        firstTime = false;
-        waypoint_counter = 1;
-    }
-    if (saved_wp_.is_open()) {
-        saved_wp_ << waypoint_counter << ","
-                  << std::setprecision(10) << wp_array[0] << ","
-                  << std::setprecision(10) << wp_array[1] << ","
-                  << std::setprecision(10) << wp_array[2] << ","
-                  << std::setprecision(10) << wp_array[3] << ","
-                  << 1 << "," << 2 << ",TRUE" << "\n";
-        waypoint_counter++;
-    }
-}
-
-void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
+void PathGenerate::csv_save_UGCS(double *wp_array, float altitude) {
     if (firstTime) {
         saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
         firstTime = false;
@@ -101,7 +84,31 @@ void PathGenerate::csv_save_ugcs_simplify(double *wp_array, float altitude) {
     }
 }
 
-void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
+void PathGenerate::csv_save_DJI(double *wp_array, int row) {
+    for (int i = 0; i < row; i++) {
+        if (saved_wp_.is_open()) {
+            if (i != row - 1) { saved_wp_ << std::setprecision(10) << wp_array[i] << ", "; }
+            else { saved_wp_ << std::setprecision(10) << wp_array[i] << "\n"; }
+        }
+    }
+}
+
+void PathGenerate::csv_save_XY_yaw(double *wp_array, double yaw) {
+    if (firstTime) {
+        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
+        firstTime = false;
+        waypoint_counter = 1;
+    }
+    if (saved_wp_.is_open()) {
+        saved_wp_ << waypoint_counter << ","
+                  << std::setprecision(10) << wp_array[1] + xyz[0] << ","
+                  << std::setprecision(10) << wp_array[0] + xyz[1] << ","
+                  << std::setprecision(3) << yaw << "\n";
+        waypoint_counter++;
+    }
+}
+
+void PathGenerate::csv_save_XYZ_yaw(double *wp_array, double z, double yaw) {
     if (firstTime) {
         saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;
         firstTime = false;
@@ -114,15 +121,6 @@ void PathGenerate::csv_save_ugcs_XY(double *wp_array, double z, double yaw) {
                   << std::setprecision(3) << z << ","
                   << std::setprecision(3) << yaw << "\n";
         waypoint_counter++;
-    }
-}
-
-void PathGenerate::csv_save_DJI(double *wp_array, int row) {
-    for (int i = 0; i < row; i++) {
-        if (saved_wp_.is_open()) {
-            if (i != row - 1) { saved_wp_ << std::setprecision(10) << wp_array[i] << ", "; }
-            else { saved_wp_ << std::setprecision(10) << wp_array[i] << "\n"; }
-        }
     }
 }
 
@@ -156,24 +154,24 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             /// Export to CSV file
             switch (csv_type) {
                 case 1:
-                    csv_save_ugcs(waypoint_);
+                    csv_save_UGCS(waypoint_, altitude);
                     if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
                     break;
                 case 2:
-                    csv_save_ugcs_XY(xy_array_, altitude, waypoint_[3]);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct emulation" << std::endl;
-                    }
+                    csv_save_DJI(waypoint_, count_wp);
+                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
                     break;
                 case 3:
-                    csv_save_ugcs_simplify(waypoint_, altitude);
+                    csv_save_XY_yaw(xy_array_, waypoint_[3]);
                     if (count_wp >= angleCount_ * altitudeCount_) {
                         std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
                     }
                     break;
                 case 4:
-                    csv_save_DJI(waypoint_, count_wp);
-                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
+                    csv_save_XYZ_yaw(xy_array_, altitude, waypoint_[3]);
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct emulation" << std::endl;
+                    }
                     break;
             }
             if (k == altitudeCount_ - 1) {
@@ -204,7 +202,6 @@ void PathGenerate::setFileName(std::string file_name) {
 }
 
 std::string PathGenerate::getFileName() {
-
     return file_name_;
 }
 

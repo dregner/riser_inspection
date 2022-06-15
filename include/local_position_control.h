@@ -69,7 +69,8 @@ private:
     float rpa_height;
 
     /// Internal references
-    bool use_rtk = false, doing_mission = false, first_time = true;
+    bool use_rtk = false, first_time = true, doing_mission = false;
+    int type_mission = 0; /// 0 - full automated, 1 - semiautomatic
     bool use_wp_list = false;
     int wp_n = 1;
     double v_error, h_error;
@@ -115,12 +116,13 @@ public:
 
     void local_position_ctrl_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n);
 
-    void elapse_control_mission(bool mission);
+    void local_position_ctrl_semi_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n);
+
+    void elapse_control_mission(bool mission, int type_mission);
 
     void elapse_control(bool mission);
 
-    bool generate_WP();
-
+    bool generate_WP(int csv_type);
 
 };
 

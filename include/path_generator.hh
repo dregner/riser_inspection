@@ -83,13 +83,13 @@ public:
 
     void createInspectionPoints(int csv_type);
 
-    void csv_save_ugcs(double *wp_array); // Used to export on UgCS
+    void csv_save_UGCS(double *wp_array, float altitude); // Used to export on UgCS
 
-    void csv_save_ugcs_simplify(double *wp_array, float altitude); // Used to export on UgCS
+    void csv_save_XY_yaw(double *wp_array, double yaw); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 
-    void csv_save_ugcs_XY(double *wp_array, double z, double yaw);
+    void csv_save_XYZ_yaw(double *wp_array, double z, double yaw);
 
     void openFile();
 
