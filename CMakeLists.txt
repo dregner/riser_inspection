@@ -54,7 +54,7 @@ set(CMAKE_CXX_STANDARD 14)
 ################################################
 
 
-add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv LocalPosition.srv LocalVelocity.srv)
+add_service_files(FILES askControl.srv wpFolders.srv wpStartMission.srv LocalPosition.srv LocalVelocity.srv hPoint.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
@@ -110,6 +110,13 @@ target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} igni
 
 add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
+
+add_executable(save_disp_zed src/ros/save_disp_gps_atti.cpp)
+target_link_libraries(save_disp_zed ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(show_disp src/ros/show_disp.cpp)
+target_link_libraries(show_disp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
 
 

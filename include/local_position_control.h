@@ -29,6 +29,7 @@
 #include <riser_inspection/LocalPosition.h>
 #include <riser_inspection/LocalVelocity.h>
 #include <riser_inspection/wpStartMission.h>
+#include <riser_inspection/hPoint.h>
 // DJI SDK includes
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
@@ -52,6 +53,7 @@ private:
     ros::ServiceServer local_position_service;
     ros::ServiceServer local_velocity_service;
     ros::ServiceServer start_mission_service;
+    ros::ServiceServer horizontal_point_service;
 
     /// DJI Services
     ros::ServiceClient sdk_ctrl_authority_service;
