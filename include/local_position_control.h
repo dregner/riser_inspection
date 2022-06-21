@@ -110,6 +110,9 @@ public:
     bool start_mission_service_cb(riser_inspection::wpStartMission::Request &req,
                                   riser_inspection::wpStartMission::Response &res);
 
+    bool horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
+                                  riser_inspection::hPoint::Response &res);
+
     bool obtain_control(bool ask);
 
     bool local_position_velocity(float vx, float vy, float vz, float vyaw);

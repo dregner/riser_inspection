@@ -48,7 +48,7 @@ private:
     double polar_array_[2]{0, 0}; // Polar array [r deg]
     double xy_array_[2]{0, 0};    // Cart array [x y]
     double waypoint_[4]{0, 0, 0, 0}; // Waypoint array [lat lon alt heading]
-
+    std::vector<int> heading_;
     /// Initial position to waypoint creates
     // TODO: Must come as initialize parameters
     double lat0_ = -27.605299;  // Starting latitude
@@ -85,7 +85,7 @@ public:
 
     void csv_save_UGCS(double *wp_array, float altitude); // Used to export on UgCS
 
-    void csv_save_XY_yaw(double *wp_array, double yaw); // Used to export on UgCS
+    void csv_save_XY_yaw(double *wp_array, double yaw, int i); // Used to export on UgCS
 
     void csv_save_DJI(double *wp_array, int row); // Used to export on
 

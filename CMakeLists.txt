@@ -105,12 +105,14 @@ target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition
 add_executable(save_gps_atti src/ros/save_gps_atti.cpp)
 target_link_libraries(save_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
+add_executable(save_positions src/ros/save_gps_local_atti.cpp)
+target_link_libraries(save_positions ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
 add_executable(gps_rtk_atti src/ros/read_gps_rtk_atti.cpp)
 target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
 add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
-
 
 add_executable(save_disp_zed src/ros/save_disp_gps_atti.cpp)
 target_link_libraries(save_disp_zed ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)

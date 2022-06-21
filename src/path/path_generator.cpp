@@ -44,6 +44,7 @@ void PathGenerate::inspectionAngle2Heading(int polar_angle) {
     /// Conditions to keep range - 180 to 180
     if (heading < -180) { heading = heading + 360; }
     if (heading > 180) { heading = heading - 360; }
+    heading_.push_back(polar_angle);
     waypoint_[3] = heading;
 }
 
@@ -93,18 +94,23 @@ void PathGenerate::csv_save_DJI(double *wp_array, int row) {
     }
 }
 
-void PathGenerate::csv_save_XY_yaw(double *wp_array, double yaw) {
+void PathGenerate::csv_save_XY_yaw(double *wp_array, double yaw, int i) {
+    static int angle_count;
     if (firstTime) {
-        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
+        saved_wp_ << "WP,X,Y,UavYaw" << std::endl;
         firstTime = false;
         waypoint_counter = 1;
+        angle_count = i;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << waypoint_counter << ","
-                  << std::setprecision(10) << wp_array[1] + xyz[0] << ","
-                  << std::setprecision(10) << wp_array[0] + xyz[1] << ","
-                  << std::setprecision(3) << yaw << "\n";
-        waypoint_counter++;
+        if(angle_count == i) {
+            saved_wp_ << waypoint_counter << ","
+                      << std::setprecision(10) << wp_array[1] + xyz[0] << ","
+                      << std::setprecision(10) << wp_array[0] + xyz[1] << ","
+                      << std::setprecision(3) << yaw << "\n";
+            waypoint_counter++;
+            angle_count++;
+        }
     }
 }
 
@@ -155,22 +161,23 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             switch (csv_type) {
                 case 1:
                     csv_save_UGCS(waypoint_, altitude);
-                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on UgCS struct" << std::endl; }
+                    if (count_wp >= angleCount_ * altitudeCount_) {
+                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl; }
                     break;
                 case 2:
                     csv_save_DJI(waypoint_, count_wp);
                     if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
                     break;
                 case 3:
-                    csv_save_XY_yaw(xy_array_, waypoint_[3]);
+                    csv_save_XY_yaw(xy_array_, waypoint_[3], i);
                     if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl;
+                        std::cout << "Saved on XY struct" << std::endl;
                     }
                     break;
                 case 4:
                     csv_save_XYZ_yaw(xy_array_, altitude, waypoint_[3]);
                     if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct emulation" << std::endl;
+                        std::cout << "Saved on XYZ struct" << std::endl;
                     }
                     break;
             }
