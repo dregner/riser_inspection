@@ -115,13 +115,13 @@ bool LocalController::start_mission_service_cb(riser_inspection::wpStartMission:
 
 bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
                                                riser_inspection::hPoint::Response &res) {
-    ROS_INFO("Received new horizontal point number &i", req.number);
+    ROS_INFO("Received new horizontal point number %i", req.number);
     int wp_number = req.number - 1;
 
-    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2], rpa_height * 2,
-                               DEG2RAD(2 * waypoint_l[wp_number][4]));
+    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2], 2*rpa_height,
+                               DEG2RAD(2*waypoint_l[wp_number][3]));
     ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_l[wp_number][1], waypoint_l[wp_number][2],
-             rpa_height, waypoint_l[wp_number][4]);
+             rpa_height, waypoint_l[wp_number][3]);
     doing_mission = true;
     type_mission = 1;
     return res.result = LocalController::obtain_control(true);
@@ -258,7 +258,7 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
         (std::abs(target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
         (std::abs(target_offset[3] / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 target_offset[0], target_offset[1], target_offset[2] / 2, RAD2DEG(target_offset[3] / 2));
+                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         LocalController::obtain_control(false);
         doing_mission = false;
     }
@@ -285,9 +285,8 @@ LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double 
         (std::abs(yCmd) < h_error) &&
         (std::abs(waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
         (std::abs(DEG2RAD(waypoint_l[waypoint_n][4]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
-        ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", (int) waypoint_l[waypoint_n][0],
-                 waypoint_l[waypoint_n][1], waypoint_l[waypoint_n][2], waypoint_l[waypoint_n][3] / 2,
-                 waypoint_l[waypoint_n][4] / 2);
+        ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", wp_n,
+                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         if (waypoint_n >= (int) waypoint_l.size() - 1) {
             LocalController::obtain_control(false);
             doing_mission = false;
@@ -317,9 +316,10 @@ LocalController::local_position_ctrl_semi_mission(double &xCmd, double &yCmd, do
 
     if ((std::abs(xCmd) < h_error) &&
         (std::abs(yCmd) < h_error) &&
-        (std::abs(target_offset[2] / 2 - rpa_height) < v_error) &&
-        (std::abs(DEG2RAD(target_offset[4]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
-        ROS_INFO("REACHED WP - [%f. %f, %f] m @ %f deg", target_offset[0], target_offset[1], target_offset[2]/2, target_offset[3]/2);
+        (std::abs(target_offset[2]/2 - rpa_height) < v_error) &&
+        (std::abs(DEG2RAD(target_offset[3]/2) - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+        ROS_INFO("REACHED WP - [%f. %f, %f] m @ %f deg", current_local_pos.point.x, current_local_pos.point.y,
+                 rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         doing_mission = false;
         LocalController::obtain_control(false);
         use_wp_list = false;
@@ -375,11 +375,11 @@ bool LocalController::generate_WP(int csv_type) {
             for (int k = 1; k < (int) csv_file.size(); k++) {
                 waypoint_l.push_back(
                         {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
-                         2 * std::stof(csv_file[k][3])});
+                         std::stof(csv_file[k][3])});
             }
             waypoint_l.push_back(
                     {(float) csv_file.size(), (float) current_local_pos.point.x, (float) current_local_pos.point.y,
-                     2 * (float) RAD2DEG(current_atti_euler.Yaw())});
+                     (float) RAD2DEG(current_atti_euler.Yaw())});
             ROS_INFO("Created %i horizontal points", h_points);
             ROS_INFO("To send RPA to the points use service /riser_inspection/horizontal_point");
             return true;
