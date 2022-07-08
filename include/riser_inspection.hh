@@ -35,7 +35,7 @@
 #include <dji_sdk/MissionWpUpload.h>
 #include <dji_sdk/MissionWpAction.h>
 //Riser inspection includes
-#include <riser_inspection/wpStartMission.h>
+#include <riser_inspection/StartMission.h>
 #include <path_generator.hh>
 #include <service_ack_type.hpp>
 //System includes
@@ -106,8 +106,8 @@ public:
 
     void attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
-    bool start_mision_callback(riser_inspection::wpStartMission::Request &req,
-                               riser_inspection::wpStartMission::Response &res);
+    bool start_mision_callback(riser_inspection::StartMission::Request &req,
+                               riser_inspection::StartMission::Response &res);
 
     /// Functions to local position control
 

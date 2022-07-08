@@ -118,15 +118,14 @@ bool WaypointControl::folders_serviceCB(riser_inspection::wpFolders::Request &re
     }
 }
 
-bool WaypointControl::startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
-                                             riser_inspection::wpStartMission::Response &res) {
+bool WaypointControl::startMission_serviceCB(riser_inspection::StartMission::Request &req,
+                                             riser_inspection::StartMission::Response &res) {
     // Initial setting
     pathGenerator.reset(); // clear pathGen
     waypoint_l.clear(); // clear waypoint list
     img_counter = 1, wp_counter = 1; // Reset counter of image and waypoint
     voo++; // change images file name
     start_gps_location = current_gps; // Get Initial position
-    use_rtk = req.use_rtk; // Store use of RTK to control image acquisition
     // Path generate parameters
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 5);

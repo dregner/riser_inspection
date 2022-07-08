@@ -28,14 +28,16 @@
 #include <iostream>
 #include <riser_inspection/LocalPosition.h>
 #include <riser_inspection/LocalVelocity.h>
-#include <riser_inspection/wpStartMission.h>
+#include <riser_inspection/StartMission.h>
 #include <riser_inspection/hPoint.h>
+#include <stereo_vant/PointGray.h>
 // DJI SDK includes
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/SetLocalPosRef.h>
 #include <dji_sdk/CameraAction.h>
 #include <dji_sdk/dji_sdk.h>
+#include <dji_sdk/Gimbal.h>
 
 #include <path_generator.hh>
 
@@ -46,14 +48,17 @@ class LocalController {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub, rtk_sub, attitude_sub, local_pos_sub, height_sub;
-    ros::Publisher ctrlPosYawPub, velocityPosYawPub;
+    ros::Subscriber gps_sub, rtk_sub, attitude_sub, local_pos_sub, height_sub, rtk_status;
+    ros::Publisher ctrlPosYawPub, velocityPosYawPub, gimbalAnglePub;
 
     /// XYZ service
     ros::ServiceServer local_position_service;
     ros::ServiceServer local_velocity_service;
     ros::ServiceServer start_mission_service;
     ros::ServiceServer horizontal_point_service;
+
+    /// Stereo VANT3D
+    ros::ServiceClient stereo_v3d_service;
 
     /// DJI Services
     ros::ServiceClient sdk_ctrl_authority_service;
@@ -76,6 +81,11 @@ private:
     bool use_wp_list = false;
     int wp_n = 1;
     double v_error, h_error;
+
+    bool take_photo = false;
+    bool use_stereo = false;
+    int stereo_voo = 0;
+    int camera_count = 1;
 
     PathGenerate pathGenerator;
     std::vector<std::vector<float>> waypoint_l;
@@ -107,8 +117,8 @@ public:
     bool local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
                                    riser_inspection::LocalVelocity::Response &res);
 
-    bool start_mission_service_cb(riser_inspection::wpStartMission::Request &req,
-                                  riser_inspection::wpStartMission::Response &res);
+    bool start_mission_service_cb(riser_inspection::StartMission::Request &req,
+                                  riser_inspection::StartMission::Response &res);
 
     bool horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
                                   riser_inspection::hPoint::Response &res);
@@ -116,6 +126,10 @@ public:
     bool obtain_control(bool ask);
 
     bool local_position_velocity(float vx, float vy, float vz, float vyaw);
+
+    void set_gimbal_angles(float roll, float pitch, float yaw);
+
+    bool acquire_photo(bool stereo);
 
     void local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd);
 

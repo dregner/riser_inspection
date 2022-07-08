@@ -46,7 +46,7 @@
 //Riser inspection includes
 #include <riser_inspection/askControl.h>
 #include <riser_inspection/wpFolders.h>
-#include <riser_inspection/wpStartMission.h>
+#include <riser_inspection/StartMission.h>
 #include <stereo_vant/PointGray.h>
 //System includes
 #include <string>
@@ -124,8 +124,8 @@ public:
 
     bool ask_control(riser_inspection::askControl::Request &req, riser_inspection::askControl::Response &res);
 
-    bool startMission_serviceCB(riser_inspection::wpStartMission::Request &req,
-                                riser_inspection::wpStartMission::Response &res);
+    bool startMission_serviceCB(riser_inspection::StartMission::Request &req,
+                                riser_inspection::StartMission::Response &res);
     void mission(const sensor_msgs::NavSatFix::ConstPtr &gps_msg, const std_msgs::Float32::ConstPtr &height_msg);
 
     bool take_photo();

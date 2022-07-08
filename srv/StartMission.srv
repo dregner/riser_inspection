@@ -1,4 +1,5 @@
-bool use_rtk
+bool take_photo
+bool use_stereo
 uint8 control_type
 ---
 bool result

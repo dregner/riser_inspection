@@ -29,7 +29,7 @@ void callback(const stereo_msgs::DisparityImageConstPtr &msg,
     cv_bridge::CvImagePtr cv_ptr;
 
     namespace enc = sensor_msgs::image_encodings;
-    ROS_INFO("MIN: %f, MAX: %f", msg->min_disparity, msg->max_disparity);
+//    ROS_INFO("MIN: %f, MAX: %f", msg->min_disparity, msg->max_disparity);
     try {
         cv_ptr = cv_bridge::toCvCopy(msg->image, sensor_msgs::image_encodings::TYPE_32FC1);
     }
@@ -55,17 +55,10 @@ void callback(const stereo_msgs::DisparityImageConstPtr &msg,
             (*disparity_color_v)[0] = colormap[3 * index + 2];
         }
     }
-    double minVal, maxVal;
-    cv::minMaxLoc(cv_ptr->image, &minVal, &maxVal); //find minimum and maximum intensities
-    //Mat draw;
-    cv_ptr->image.convertTo(disp_img, CV_8U, 255.0/(maxVal - minVal), -minVal * 255.0/(maxVal - minVal));
-//    cv::Mat depth_colormap;
-//    cv::convertScaleAbs(cv_ptr->image, depth_colormap, 10);
-//    cv::applyColorMap(depth_colormap, depth_colormap, cv::COLORMAP_JET);
     std::stringstream write;
 
    write << "zed_D" << counter << ".png";
-    cv::imwrite(write.str(), disp_img);
+    cv::imwrite(write.str(), disparity_color);
     if (images_file.is_open()) {
         images_file << write.str()
                     << "\t" << std::setprecision(10) << pose_GPS->longitude << "\t" << std::setprecision(10)
@@ -76,8 +69,6 @@ void callback(const stereo_msgs::DisparityImageConstPtr &msg,
                     << "\n";
     }
     ++counter;
-
-
 }
 
 

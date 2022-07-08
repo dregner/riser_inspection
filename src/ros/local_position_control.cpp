@@ -13,7 +13,7 @@ LocalController::~LocalController() = default;
 void LocalController::subscribing(ros::NodeHandle &nh) {
     std::string gps_topic, rtk_topic, attitude_topic, height_topic, local_pos_topic;
 
-    // Topic parameters
+    //! Topic parameters
     nh.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
     nh.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
     nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
@@ -22,7 +22,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     nh.param("/riser_inspection/horizontal_error", h_error, 0.2);
     nh.param("/riser_inspection/vertical_error", v_error, 0.1);
     nh.param("/riser_inspeciton/use_rtk", use_rtk, false);
-    // Subscribe topics
+    //! Subscribe topics
     gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
     rtk_sub = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &LocalController::rtk_callback, this);
     attitude_sub = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic, 1,
@@ -31,13 +31,16 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
                                                               &LocalController::local_position_callback, this);
     height_sub = nh.subscribe<std_msgs::Float32>(height_topic, 1, &LocalController::height_callback, this);
 
-    // Publish topics
+    //! Publish topics
     ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
     velocityPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUvelocity_yawrate", 10);
-    // Service topics
+    gimbalAnglePub = nh.advertise<dji_sdk::Gimbal>("/dji_sdk/gimbal_angle_cmd", 10);
+
+    //! Service topics
     sdk_ctrl_authority_service = nh.serviceClient<dji_sdk::SDKControlAuthority>("dji_sdk/sdk_control_authority");
     set_local_pos_reference = nh.serviceClient<dji_sdk::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
     camera_action_service = nh.serviceClient<dji_sdk::CameraAction>("dji_sdk/camera_action");
+    stereo_v3d_service = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
     local_position_service = nh.advertiseService("/local_position/set_position",
@@ -99,18 +102,33 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
     }
 }
 
-bool LocalController::start_mission_service_cb(riser_inspection::wpStartMission::Request &req,
-                                               riser_inspection::wpStartMission::Response &res) {
+bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req,
+                                               riser_inspection::StartMission::Response &res) {
+
+    doing_mission = true;
+    use_wp_list = true;
+    take_photo = req.take_photo;
+    if(req.use_stereo){
+        use_stereo = req.use_stereo;
+        stereo_vant::PointGray stereoAction;
+        stereo_voo++;
+        stereoAction.request.reset_counter = true;
+        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+        stereoAction.request.file_name = "stereo_vant";
+        stereo_v3d_service.call(stereoAction);
+    }else {
+        LocalController::set_gimbal_angles(0, 0, 0);
+    }
+    LocalController::local_position_velocity(0.5,0.5,0.2,1);
     generate_WP(req.control_type);
     if (req.control_type == 4) {
         type_mission = 0; // full mision
+        return res.result = LocalController::obtain_control(true);
     }
     if (req.control_type == 3) {
         type_mission = 1;
+        return res.result = true;
     }
-    doing_mission = true;
-    use_wp_list = true;
-    return res.result = true;
 }
 
 bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
@@ -118,10 +136,10 @@ bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request
     ROS_INFO("Received new horizontal point number %i", req.number);
     int wp_number = req.number - 1;
 
-    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2], 2*rpa_height,
-                               DEG2RAD(2*waypoint_l[wp_number][3]));
+    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2],  2*rpa_height,
+                               DEG2RAD(waypoint_l[wp_number][3]));
     ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_l[wp_number][1], waypoint_l[wp_number][2],
-             rpa_height, waypoint_l[wp_number][3]);
+             rpa_height, waypoint_l[wp_number][3]/2);
     doing_mission = true;
     type_mission = 1;
     return res.result = LocalController::obtain_control(true);
@@ -236,6 +254,23 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
 
 }
 
+void LocalController::set_gimbal_angles(float roll, float pitch, float yaw) {
+    dji_sdk::Gimbal gimbal_angle_data;
+    gimbal_angle_data.mode |= 0;
+    gimbal_angle_data.mode |= 1;
+    gimbal_angle_data.mode |= 0 << 1;
+    gimbal_angle_data.mode |= 1 << 2;
+    gimbal_angle_data.mode |= 1 << 3;
+    gimbal_angle_data.ts    = 2;
+    gimbal_angle_data.roll  = DEG2RAD(roll);
+    gimbal_angle_data.pitch = DEG2RAD(pitch);
+    gimbal_angle_data.yaw   = DEG2RAD(yaw);
+
+    gimbalAnglePub.publish(gimbal_angle_data);
+    // Give time for gimbal to sync
+    sleep(2);
+}
+
 void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
     xCmd = target_offset[0] - current_local_pos.point.x;
     yCmd = target_offset[1] - current_local_pos.point.y;
@@ -292,6 +327,9 @@ LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double 
             doing_mission = false;
             use_wp_list = false;
         } else {
+            if(take_photo){
+                LocalController::acquire_photo(use_stereo);
+            }
             ros::Duration(2).sleep();
             wp_n++;
         }
@@ -316,8 +354,8 @@ LocalController::local_position_ctrl_semi_mission(double &xCmd, double &yCmd, do
 
     if ((std::abs(xCmd) < h_error) &&
         (std::abs(yCmd) < h_error) &&
-        (std::abs(target_offset[2]/2 - rpa_height) < v_error) &&
-        (std::abs(DEG2RAD(target_offset[3]/2) - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+        (std::abs(target_offset[2] / 2 - rpa_height) < v_error) &&
+        (std::abs(DEG2RAD(target_offset[3]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
         ROS_INFO("REACHED WP - [%f. %f, %f] m @ %f deg", current_local_pos.point.x, current_local_pos.point.y,
                  rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         doing_mission = false;
@@ -326,6 +364,25 @@ LocalController::local_position_ctrl_semi_mission(double &xCmd, double &yCmd, do
     }
 }
 
+bool LocalController::acquire_photo(bool stereo) {
+    if (stereo) {
+        stereo_vant::PointGray stereoAction;
+        stereoAction.request.reset_counter = false;
+        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+        stereoAction.request.file_name = "stereo_vant";
+        stereo_v3d_service.call(stereoAction);
+
+    } else {
+        dji_sdk::CameraAction cameraAction;
+        cameraAction.request.camera_action = 0;
+        camera_action_service.call(cameraAction);
+        if (cameraAction.response.result) {
+            ROS_INFO("Picture %i - %b", camera_count, cameraAction.response.result);
+            camera_count++;
+        }
+        return cameraAction.response.result;
+    }
+}
 bool LocalController::generate_WP(int csv_type) {
     /** Initial setting and parameters to generate trajectory*/
     pathGenerator.reset(); // clear pathGen
@@ -355,7 +412,7 @@ bool LocalController::generate_WP(int csv_type) {
 
         std::vector<std::vector<std::string>> csv_file = pathGenerator.read_csv(
                 pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
-        //!Vector of XY and Yaw positions to generate a fully automated control
+        //!Vector of XYZ and Yaw positions to generate a fully automated control
         if (csv_type == 4) {
             for (int k = 1; k < (int) csv_file.size(); k++) {
                 waypoint_l.push_back(
@@ -364,8 +421,7 @@ bool LocalController::generate_WP(int csv_type) {
             }
             waypoint_l.push_back(
                     {(float) csv_file.size(), (float) current_local_pos.point.x, (float) current_local_pos.point.y,
-                     2 * rpa_height,
-                     2 * (float) RAD2DEG(current_atti_euler.Yaw())});
+                     2 * rpa_height, 2 * (float) RAD2DEG(current_atti_euler.Yaw())});
             return true;
 
         }
@@ -375,11 +431,11 @@ bool LocalController::generate_WP(int csv_type) {
             for (int k = 1; k < (int) csv_file.size(); k++) {
                 waypoint_l.push_back(
                         {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
-                         std::stof(csv_file[k][3])});
+                         2*std::stof(csv_file[k][3])});
             }
             waypoint_l.push_back(
                     {(float) csv_file.size(), (float) current_local_pos.point.x, (float) current_local_pos.point.y,
-                     (float) RAD2DEG(current_atti_euler.Yaw())});
+                     2 * (float) RAD2DEG(current_atti_euler.Yaw())});
             ROS_INFO("Created %i horizontal points", h_points);
             ROS_INFO("To send RPA to the points use service /riser_inspection/horizontal_point");
             return true;

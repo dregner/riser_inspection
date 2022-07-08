@@ -140,7 +140,7 @@ void PathGenerate::createInspectionPoints(int csv_type) {
     openFile();
     findCenterHeading(deltaAngle_, angleCount_);
     int count_wp = 1;
-    float initial = csv_type == 2 ? xyz[2] : alt0_;
+    float initial = csv_type == 4 ? xyz[2] : alt0_;
 
     float vertical; // Set if will move drone down or up INITIALLY DOWN.
     for (int i = 0; i < angleCount_; i++) {
