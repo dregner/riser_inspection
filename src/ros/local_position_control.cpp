@@ -3,6 +3,7 @@
 //
 
 #include <local_position_control.h>
+#include <dji_control.hpp>
 
 LocalController::LocalController() {
     subscribing(nh_);
@@ -31,15 +32,15 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
                                                               &LocalController::local_position_callback, this);
     height_sub = nh.subscribe<std_msgs::Float32>(height_topic, 1, &LocalController::height_callback, this);
 
-    //! Publish topics
-    ctrlPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUposition_yaw", 10);
-    velocityPosYawPub = nh.advertise<sensor_msgs::Joy>("dji_sdk/flight_control_setpoint_ENUvelocity_yawrate", 10);
-    gimbalAnglePub = nh.advertise<dji_sdk::Gimbal>("/dji_sdk/gimbal_angle_cmd", 10);
 
     //! Service topics
-    sdk_ctrl_authority_service = nh.serviceClient<dji_sdk::SDKControlAuthority>("dji_sdk/sdk_control_authority");
-    set_local_pos_reference = nh.serviceClient<dji_sdk::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
-    camera_action_service = nh.serviceClient<dji_sdk::CameraAction>("dji_sdk/camera_action");
+    obtain_control_sdk = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("obtain_release_control_authority");
+    set_local_pos_reference = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
+    joystick_mode = nh.serviceClient<dji_osdk_ros::SetJoystickMode>("set_joystick_mode");
+    joystick_action = nh.serviceClient<dji_osdk_ros::JoystickAction>("joystick_action");
+    gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("gimbal_task_control");
+    //! Camera services
+    camera_action_service = nh.serviceClient<dji_osdk_ros::CameraAction>("dji_sdk/camera_action");
     stereo_v3d_service = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
@@ -58,9 +59,9 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 }
 
 bool LocalController::obtain_control(bool ask) {
-    dji_sdk::SDKControlAuthority authority;
-    authority.request.control_enable = ask;
-    sdk_ctrl_authority_service.call(authority);
+    dji_osdk_ros::ObtainControlAuthority authority;
+    authority.request.enable_obtain = ask;
+    obtain_control_sdk.call(authority);
 
     if (!authority.response.result) {
         ROS_ERROR("Do not understood");
@@ -108,7 +109,7 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
     doing_mission = true;
     use_wp_list = true;
     take_photo = req.take_photo;
-    if(req.use_stereo){
+    if (req.use_stereo) {
         use_stereo = req.use_stereo;
         stereo_vant::PointGray stereoAction;
         stereo_voo++;
@@ -116,10 +117,10 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
         stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
         stereoAction.request.file_name = "stereo_vant";
         stereo_v3d_service.call(stereoAction);
-    }else {
+    } else {
         LocalController::set_gimbal_angles(0, 0, 0);
     }
-    LocalController::local_position_velocity(0.5,0.5,0.2,1);
+    LocalController::local_position_velocity(0.5, 0.5, 0.2, 1);
     generate_WP(req.control_type);
     if (req.control_type == 4) {
         type_mission = 0; // full mision
@@ -136,10 +137,10 @@ bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request
     ROS_INFO("Received new horizontal point number %i", req.number);
     int wp_number = req.number - 1;
 
-    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2],  2*rpa_height,
+    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2], 2 * rpa_height,
                                DEG2RAD(waypoint_l[wp_number][3]));
     ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_l[wp_number][1], waypoint_l[wp_number][2],
-             rpa_height, waypoint_l[wp_number][3]/2);
+             rpa_height, waypoint_l[wp_number][3] / 2);
     doing_mission = true;
     type_mission = 1;
     return res.result = LocalController::obtain_control(true);
@@ -229,25 +230,20 @@ void LocalController::setTarget(float x, float y, float z, float yaw) {
 }
 
 bool LocalController::set_local_position() {
-    dji_sdk::SetLocalPosRef localPosReferenceSetter;
+    dji_osdk_ros::SetLocalPosRef localPosReferenceSetter;
     set_local_pos_reference.call(localPosReferenceSetter);
 
     return (bool) localPosReferenceSetter.response.result;
 }
 
 bool LocalController::local_position_velocity(float vx, float vy, float vz, float vyaw) {
-    sensor_msgs::Joy vel_PosYaw;
-    uint8_t flag = (DJISDK::VERTICAL_VELOCITY |
-                    DJISDK::HORIZONTAL_VELOCITY |
-                    DJISDK::YAW_RATE |
-                    DJISDK::HORIZONTAL_GROUND |
-                    DJISDK::STABLE_ENABLE);
-    vel_PosYaw.axes.push_back(vx);
-    vel_PosYaw.axes.push_back(vy);
-    vel_PosYaw.axes.push_back(vz);
-    vel_PosYaw.axes.push_back(vyaw);
-    vel_PosYaw.axes.push_back(flag);
-    velocityPosYawPub.publish(vel_PosYaw);
+    dji_osdk_ros::SetJoystickMode joystickMode;
+    joystickMode.request.horizontal_mode = joystickMode.request.HORIZONTAL_VELOCITY;
+    joystickMode.request.vertical_mode = joystickMode.request.VERTICAL_VELOCITY;
+    joystickMode.request.yaw_mode = joystickMode.request.YAW_RATE;
+    joystickMode.request.horizontal_coordinate = joystickMode.request.HORIZONTAL_GROUND;
+    joystickMode.request.stable_mode = joystickMode.request.STABLE_ENABLE;
+    joystick_mode.call(joystickMode);
     ros::spinOnce();
     ROS_INFO("Changed velocity: [%f, %f, %f, %f]", vx, vy, vz, vyaw);
     return true;
@@ -255,43 +251,29 @@ bool LocalController::local_position_velocity(float vx, float vy, float vz, floa
 }
 
 void LocalController::set_gimbal_angles(float roll, float pitch, float yaw) {
-    dji_sdk::Gimbal gimbal_angle_data;
-    gimbal_angle_data.mode |= 0;
-    gimbal_angle_data.mode |= 1;
-    gimbal_angle_data.mode |= 0 << 1;
-    gimbal_angle_data.mode |= 1 << 2;
-    gimbal_angle_data.mode |= 1 << 3;
-    gimbal_angle_data.ts    = 2;
-    gimbal_angle_data.roll  = DEG2RAD(roll);
-    gimbal_angle_data.pitch = DEG2RAD(pitch);
-    gimbal_angle_data.yaw   = DEG2RAD(yaw);
+    dji_osdk_ros::GimbalAction gimbalAction;
+    gimbalAction.request.is_reset = false;
+    gimbalAction.request.payload_index = static_cast<uint8_t>(dji_osdk_ros::PayloadIndex::PAYLOAD_INDEX_0);
+    gimbalAction.request.rotationMode = 0;
+    gimbalAction.request.pitch = pitch;
+    gimbalAction.request.roll = roll;
+    gimbalAction.request.yaw = yaw;
+    gimbalAction.request.time = 0.5;
+    gimbal_control_client.call(gimbalAction);
 
-    gimbalAnglePub.publish(gimbal_angle_data);
-    // Give time for gimbal to sync
-    sleep(2);
 }
 
 void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
-    xCmd = target_offset[0] - current_local_pos.point.x;
-    yCmd = target_offset[1] - current_local_pos.point.y;
-    zCmd = target_offset[2] - (use_rtk ? current_rtk.altitude : rpa_height);
-    yawCmd = target_offset[3] - current_atti_euler.Yaw();
+    dji_osdk_ros::FlightTaskControl control_task;
+    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
+    control_task.request.joystickCommand.x = xCmd;
+    control_task.request.joystickCommand.y = yawCmd;
+    control_task.request.joystickCommand.z = zCmd;
+    control_task.request.joystickCommand.yaw = yawCmd ;
+    control_task.request.posThresholdInM   = h_error;
+    control_task.request.yawThresholdInDeg = 2;
 
-    sensor_msgs::Joy controlPosYaw;
-    controlPosYaw.axes.push_back(xCmd);
-    controlPosYaw.axes.push_back(yCmd);
-    controlPosYaw.axes.push_back(zCmd);
-    controlPosYaw.axes.push_back(yawCmd);
-    ctrlPosYawPub.publish(controlPosYaw);
-    /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
-     This error threshold will have to change depending on aircraft/payload/wind conditions. */
-    float yaw_result = target_offset[3] / 2 - current_atti_euler.Yaw();
-    float z_result = target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
-
-    if ((std::abs(xCmd) < h_error) &&
-        (std::abs(yCmd) < h_error) &&
-        (std::abs(target_offset[2] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
-        (std::abs(target_offset[3] / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+    if(control_task.response.result) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         LocalController::obtain_control(false);
@@ -301,25 +283,16 @@ void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zC
 
 void
 LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n) {
-    xCmd = waypoint_l[waypoint_n][1] - current_local_pos.point.x;
-    yCmd = waypoint_l[waypoint_n][2] - current_local_pos.point.y;
-    zCmd = waypoint_l[waypoint_n][3] - (use_rtk ? current_rtk.altitude : rpa_height);
-    yawCmd = DEG2RAD(waypoint_l[waypoint_n][4]) - current_atti_euler.Yaw();
-    sensor_msgs::Joy controlPosYaw;
-    controlPosYaw.axes.push_back(xCmd);
-    controlPosYaw.axes.push_back(yCmd);
-    controlPosYaw.axes.push_back(zCmd);
-    controlPosYaw.axes.push_back(yawCmd);
-    ctrlPosYawPub.publish(controlPosYaw);
-    /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
-     This error threshold will have to change depending on aircraft/payload/wind conditions. */
-    float yaw_result = waypoint_l[waypoint_n][2] / 2 - current_atti_euler.Yaw();
-    float z_result = waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height);
+    dji_osdk_ros::FlightTaskControl control_task;
+    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
+    control_task.request.joystickCommand.x = waypoint_l[waypoint_n][1];
+    control_task.request.joystickCommand.y = waypoint_l[waypoint_n][2];
+    control_task.request.joystickCommand.z = waypoint_l[waypoint_n][3];
+    control_task.request.joystickCommand.yaw = waypoint_l[waypoint_n][4] ;
+    control_task.request.posThresholdInM   = h_error;
+    control_task.request.yawThresholdInDeg = 2;
 
-    if ((std::abs(xCmd) < h_error) &&
-        (std::abs(yCmd) < h_error) &&
-        (std::abs(waypoint_l[waypoint_n][3] / 2 - (use_rtk ? current_rtk.altitude : rpa_height)) < v_error) &&
-        (std::abs(DEG2RAD(waypoint_l[waypoint_n][4]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+    if(control_task.response.result) {
         ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", wp_n,
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         if (waypoint_n >= (int) waypoint_l.size() - 1) {
@@ -327,7 +300,7 @@ LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double 
             doing_mission = false;
             use_wp_list = false;
         } else {
-            if(take_photo){
+            if (take_photo) {
                 LocalController::acquire_photo(use_stereo);
             }
             ros::Duration(2).sleep();
@@ -339,23 +312,19 @@ LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double 
 void
 LocalController::local_position_ctrl_semi_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd,
                                                   int waypoint_n) {
-    xCmd = target_offset[0] - current_local_pos.point.x;
-    yCmd = target_offset[1] - current_local_pos.point.y;
-    zCmd = target_offset[2] - rpa_height;
-    yawCmd = DEG2RAD(target_offset[3]) - current_atti_euler.Yaw();
-    sensor_msgs::Joy controlPosYaw;
-    controlPosYaw.axes.push_back(xCmd);
-    controlPosYaw.axes.push_back(yCmd);
-    controlPosYaw.axes.push_back(zCmd);
-    controlPosYaw.axes.push_back(yawCmd);
-    ctrlPosYawPub.publish(controlPosYaw);
+    dji_osdk_ros::FlightTaskControl control_task;
+    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
+    control_task.request.joystickCommand.x = waypoint_l[waypoint_n][1];
+    control_task.request.joystickCommand.y = waypoint_l[waypoint_n][2];
+    control_task.request.joystickCommand.z = waypoint_l[waypoint_n][3];
+    control_task.request.joystickCommand.yaw = waypoint_l[waypoint_n][4];
+    control_task.request.posThresholdInM   = h_error;
+    control_task.request.yawThresholdInDeg = 2;
+
     /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
      This error threshold will have to change depending on aircraft/payload/wind conditions. */
 
-    if ((std::abs(xCmd) < h_error) &&
-        (std::abs(yCmd) < h_error) &&
-        (std::abs(target_offset[2] / 2 - rpa_height) < v_error) &&
-        (std::abs(DEG2RAD(target_offset[3]) / 2 - current_atti_euler.Yaw()) < DEG2RAD(2))) {
+    if(control_task.response.result) {
         ROS_INFO("REACHED WP - [%f. %f, %f] m @ %f deg", current_local_pos.point.x, current_local_pos.point.y,
                  rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         doing_mission = false;
@@ -373,7 +342,7 @@ bool LocalController::acquire_photo(bool stereo) {
         stereo_v3d_service.call(stereoAction);
 
     } else {
-        dji_sdk::CameraAction cameraAction;
+        dji_osdk_ros::CameraAction cameraAction;
         cameraAction.request.camera_action = 0;
         camera_action_service.call(cameraAction);
         if (cameraAction.response.result) {
@@ -383,6 +352,7 @@ bool LocalController::acquire_photo(bool stereo) {
         return cameraAction.response.result;
     }
 }
+
 bool LocalController::generate_WP(int csv_type) {
     /** Initial setting and parameters to generate trajectory*/
     pathGenerator.reset(); // clear pathGen
@@ -431,7 +401,7 @@ bool LocalController::generate_WP(int csv_type) {
             for (int k = 1; k < (int) csv_file.size(); k++) {
                 waypoint_l.push_back(
                         {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
-                         2*std::stof(csv_file[k][3])});
+                         2 * std::stof(csv_file[k][3])});
             }
             waypoint_l.push_back(
                     {(float) csv_file.size(), (float) current_local_pos.point.x, (float) current_local_pos.point.y,

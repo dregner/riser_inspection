@@ -34,14 +34,14 @@
 #include <std_srvs/SetBool.h>
 
 // DJI SDK includes
-#include <dji_sdk/Activation.h>
-#include <dji_sdk/DroneTaskControl.h>
-#include <dji_sdk/SDKControlAuthority.h>
-#include <dji_sdk/MissionWpUpload.h>
-#include <dji_sdk/MissionWpAction.h>
+#include <dji_osdk_ros/Activation.h>
+#include <dji_osdk_ros//DroneTaskControl.h>
+#include <dji_osdk_ros/SDKControlAuthority.h>
+#include <dji_osdk_ros/MissionWpUpload.h>
+#include <dji_osdk_ros/MissionWpAction.h>
 #include <djiosdk/dji_vehicle.hpp>
 #include <djiosdk/dji_telemetry.hpp>
-#include <dji_sdk/CameraAction.h>
+#include <dji_osdk_ros/CameraAction.h>
 
 //Riser inspection includes
 #include <riser_inspection/askControl.h>
@@ -140,21 +140,21 @@ public:
 
     ServiceAck missionAction(DJI::OSDK::MISSION_ACTION action);
 
-    ServiceAck initWaypointMission(dji_sdk::MissionWaypointTask &waypointTask);
+    ServiceAck initWaypointMission(dji_osdk_ros::MissionWaypointTask &waypointTask);
 
     bool askControlAuthority();
 
     std::vector<DJI::OSDK::WayPointSettings>
-    createWayPoint(const std::vector<std::vector<std::string>> &csv_file, dji_sdk::MissionWaypointTask &waypointTask);
+    createWayPoint(const std::vector<std::vector<std::string>> &csv_file, dji_osdk_ros::MissionWaypointTask &waypointTask);
 
     void uploadWaypoints(std::vector<DJI::OSDK::WayPointSettings> &wp_list,
-                         dji_sdk::MissionWaypointTask &waypointTask);
+                         dji_osdk_ros::MissionWaypointTask &waypointTask);
 
     bool runWaypointMission(int responseTimeout);
 
     void setWaypointDefaults(DJI::OSDK::WayPointSettings *wp);
 
-    static void setWaypointInitDefaults(dji_sdk::MissionWaypointTask &waypointTask);
+    static void setWaypointInitDefaults(dji_osdk_ros::MissionWaypointTask &waypointTask);
 };
 
 #endif // RISER_INSPECTION_H

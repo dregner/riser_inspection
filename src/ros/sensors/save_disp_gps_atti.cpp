@@ -9,7 +9,7 @@
 #include <image_transport/image_transport.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <stereo_msgs/DisparityImage.h>
-#include <colormap.h>
+#include "colormap.h"
 /// Variavel para leitura GPS RTK
 
 

@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS cv_bridge
         roscpp rospy sensor_msgs
-        message_generation message_filters dji_sdk stereo_vant)
+        message_generation message_filters stereo_vant dji_osdk_ros)
 find_package(ignition-math4)
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
@@ -60,7 +60,7 @@ generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
 catkin_package(
         INCLUDE_DIRS include
-        CATKIN_DEPENDS roscpp sensor_msgs std_msgs dji_sdk)
+        CATKIN_DEPENDS roscpp sensor_msgs std_msgs dji_osdk_ros)
 
 
 ## Specify additional locations of header files
@@ -93,43 +93,32 @@ target_link_libraries(name_image ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${Open
 add_executable(change_txt src/stereo/change_text.cpp)
 target_link_libraries(change_txt ${catkin_LIBRARIES})
 
-add_executable(waypoint_mission_node src/ros/waypoint_mission_node.cpp src/ros/waypoint_mission.cpp src/path/path_generator.cpp) #src/ros/waypoint_mission.cpp
-target_link_libraries(waypoint_mission_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
-
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp src/path/path_generator.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(gps_atti src/ros/read_gps_atti.cpp)
+add_executable(gps_atti src/ros/sensors/read_gps_atti.cpp)
 target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(save_gps_atti src/ros/save_gps_atti.cpp)
+add_executable(save_gps_atti src/ros/sensors/save_gps_atti.cpp)
 target_link_libraries(save_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(save_positions src/ros/save_gps_local_atti.cpp)
+add_executable(save_positions src/ros/sensors/save_gps_local_atti.cpp)
 target_link_libraries(save_positions ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(save_vel src/ros/save_velocities.cpp)
+add_executable(save_vel src/ros/sensors/save_velocities.cpp)
 target_link_libraries(save_vel ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(gps_rtk_atti src/ros/read_gps_rtk_atti.cpp)
+add_executable(gps_rtk_atti src/ros/sensors/read_gps_rtk_atti.cpp)
 target_link_libraries(gps_rtk_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(position_sensor src/ros/read_gps_local_atti.cpp)
+add_executable(position_sensor src/ros/sensors/read_gps_local_atti.cpp)
 target_link_libraries(position_sensor ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(save_disp_zed src/ros/save_disp_gps_atti.cpp)
+add_executable(save_disp_zed src/ros/sensors/save_disp_gps_atti.cpp)
 target_link_libraries(save_disp_zed ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
-add_executable(show_disp src/ros/show_disp.cpp)
+add_executable(show_disp src/ros/sensors/show_disp.cpp)
 target_link_libraries(show_disp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
-
-
-
-install(TARGETS waypoint_mission_node
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-        )
 
 install(TARGETS local_controller_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

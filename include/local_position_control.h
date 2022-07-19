@@ -32,24 +32,25 @@
 #include <riser_inspection/hPoint.h>
 #include <stereo_vant/PointGray.h>
 // DJI SDK includes
-#include <dji_sdk/DroneTaskControl.h>
-#include <dji_sdk/SDKControlAuthority.h>
-#include <dji_sdk/SetLocalPosRef.h>
-#include <dji_sdk/CameraAction.h>
-#include <dji_sdk/dji_sdk.h>
-#include <dji_sdk/Gimbal.h>
+#include <dji_osdk_ros/FlightTaskControl.h>
+#include <dji_osdk_ros/ObtainControlAuthority.h>
+#include <dji_osdk_ros/SetLocalPosRef.h>
+#include <dji_osdk_ros/CameraAction.h>
+#include <dji_osdk_ros/common_type.h>
+#include <dji_osdk_ros/GimbalAction.h>
+#include<dji_osdk_ros/SetJoystickMode.h>
+#include<dji_osdk_ros/JoystickAction.h>
 
 #include <path_generator.hh>
 
-#define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
-#define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
+//#define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
+//#define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
 
 class LocalController {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
     ros::Subscriber gps_sub, rtk_sub, attitude_sub, local_pos_sub, height_sub, rtk_status;
-    ros::Publisher ctrlPosYawPub, velocityPosYawPub, gimbalAnglePub;
 
     /// XYZ service
     ros::ServiceServer local_position_service;
@@ -61,9 +62,13 @@ private:
     ros::ServiceClient stereo_v3d_service;
 
     /// DJI Services
-    ros::ServiceClient sdk_ctrl_authority_service;
+    ros::ServiceClient obtain_control_sdk;
+    ros::ServiceClient flight_task_control_service;
+    ros::ServiceClient joystick_action;
+    ros::ServiceClient joystick_mode;
     ros::ServiceClient camera_action_service;
     ros::ServiceClient set_local_pos_reference;
+    ros::ServiceClient gimbal_control_client;
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps;
