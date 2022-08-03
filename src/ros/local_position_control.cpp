@@ -15,13 +15,11 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     std::string gps_topic, rtk_topic, attitude_topic, height_topic, local_pos_topic;
 
     //! Topic parameters
-    nh.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_sdk/gps_position"));
-    nh.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_sdk/rtk_position"));
-    nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_sdk/attitude"));
-    nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_sdk/height_above_takeoff"));
-    nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_sdk/local_position"));
-    nh.param("/riser_inspection/horizontal_error", h_error, 0.2);
-    nh.param("/riser_inspection/vertical_error", v_error, 0.1);
+    nh.param("/riser_inspection/gps_topic", gps_topic, std::string("/dji_osdk_sdk/gps_position"));
+    nh.param("/riser_inspection/rtk_topic", rtk_topic, std::string("/dji_osdk_sdk/rtk_position"));
+    nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_osdk_sdk/attitude"));
+    nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_osdk_sdk/height_above_takeoff"));
+    nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_osdk_sdk/local_position"));
     nh.param("/riser_inspeciton/use_rtk", use_rtk, false);
     //! Subscribe topics
     gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
@@ -35,20 +33,18 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
     //! Service topics
     obtain_control_sdk = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("obtain_release_control_authority");
-    set_local_pos_reference = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("dji_sdk/set_local_pos_ref");
-    joystick_mode = nh.serviceClient<dji_osdk_ros::SetJoystickMode>("set_joystick_mode");
+    set_local_pos_reference = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
+    joystick_mode = nh.serviceClient<dji_osdk_ros::SetJoystickMode>("/set_joystick_mode");
     joystick_action = nh.serviceClient<dji_osdk_ros::JoystickAction>("joystick_action");
-    gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("gimbal_task_control");
+    task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
+    gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
     //! Camera services
-    camera_action_service = nh.serviceClient<dji_osdk_ros::CameraAction>("dji_sdk/camera_action");
+    camera_action_service = nh.serviceClient<dji_osdk_ros::CameraAction>("camera_action");
     stereo_v3d_service = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
     local_position_service = nh.advertiseService("/local_position/set_position",
                                                  &LocalController::local_pos_service_cb, this);
-    local_velocity_service = nh.advertiseService("/local_position/set_velocity",
-                                                 &LocalController::local_velocity_service_cb,
-                                                 this);
 
     start_mission_service = nh.advertiseService("/local_position/start_mission",
                                                 &LocalController::start_mission_service_cb, this);
@@ -65,33 +61,20 @@ bool LocalController::obtain_control(bool ask) {
 
     if (!authority.response.result) {
         ROS_ERROR("Do not understood");
-        return false;
+        return authority.response.result;
     }
     ROS_INFO("SDK Controlling: %s", ask ? "True" : "False");
-    return true;
+    return authority.response.result;
 }
 
-bool LocalController::local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
-                                                riser_inspection::LocalVelocity::Response &res) {
-    try {
-        ROS_INFO("Set velocity: x - %f m/s, y - %f m/s, z - %f m/s, yaw - %f rad/s", req.v_x, req.v_y, req.v_z,
-                 req.v_yaw);
-        res.result = local_position_velocity(req.v_x, req.v_y, req.v_z, req.v_yaw);
-        return res.result;
-    } catch (ros::Exception &e) {
-        ROS_ERROR("ROS error %s", e.what());
-        return false;
-    }
-}
 
 bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Request &req,
                                            riser_inspection::LocalPosition::Response &res) {
     try {
         if (LocalController::obtain_control(true)) {
-            LocalController::setTarget(req.x, req.y, 2 * req.z, DEG2RAD(2 * req.yaw));
             ROS_INFO("Received points x: %f, y: %f, z: %f, yaw: %f", req.x, req.y, req.z, req.yaw);
-            doing_mission = true;
-            return res.result = true;
+            ROS_INFO("Threshold: %f m - %f deg", req.position_thresh, req.yaw_thresh);
+            return res.result = local_position_ctrl(req.x, req.y, req.z, req.yaw, req.position_thresh, req.yaw_thresh);
         } else {
             ROS_ERROR("Did not get Control Authority");
             return res.result = false;
@@ -107,8 +90,9 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
                                                riser_inspection::StartMission::Response &res) {
 
     doing_mission = true;
-    use_wp_list = true;
     take_photo = req.take_photo;
+    h_error = req.position_thresh;
+    yaw_error = req.yaw_thresh;
     if (req.use_stereo) {
         use_stereo = req.use_stereo;
         stereo_vant::PointGray stereoAction;
@@ -120,30 +104,37 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
     } else {
         LocalController::set_gimbal_angles(0, 0, 0);
     }
-    LocalController::local_position_velocity(0.5, 0.5, 0.2, 1);
     generate_WP(req.control_type);
     if (req.control_type == 4) {
-        type_mission = 0; // full mision
         return res.result = LocalController::obtain_control(true);
-    }
-    if (req.control_type == 3) {
-        type_mission = 1;
-        return res.result = true;
-    }
+    } else { return res.result = true; }
 }
 
 bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
                                                riser_inspection::hPoint::Response &res) {
     ROS_INFO("Received new horizontal point number %i", req.number);
     int wp_number = req.number - 1;
+    try {
 
-    LocalController::setTarget(waypoint_l[wp_number][1], waypoint_l[wp_number][2], 2 * rpa_height,
-                               DEG2RAD(waypoint_l[wp_number][3]));
-    ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_l[wp_number][1], waypoint_l[wp_number][2],
-             rpa_height, waypoint_l[wp_number][3] / 2);
-    doing_mission = true;
-    type_mission = 1;
-    return res.result = LocalController::obtain_control(true);
+        if (wp_number <= (int) waypoint_l.size() - 1) {
+            if (LocalController::obtain_control(true)) {
+
+                ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_l[wp_number][1], waypoint_l[wp_number][2],
+                         rpa_height, waypoint_l[wp_number][3]);
+                ROS_INFO("Threshold: %f m - %f deg", h_error, yaw_error);
+                return res.result = local_position_ctrl(waypoint_l[wp_number][1], waypoint_l[wp_number][2],
+                                                        rpa_height, waypoint_l[wp_number][3],
+                                                        h_error, yaw_error);
+            } else {
+                ROS_ERROR("Did not get Control Authority");
+                return res.result = false;
+            }
+        } else { doing_mission = false; }
+    }
+    catch (ros::Exception &e) {
+        ROS_ERROR("ROS error %s", e.what());
+        return res.result = false;
+    }
 
 }
 
@@ -153,26 +144,10 @@ void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
 
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
-    if (first_time && !use_rtk) {
-        ROS_INFO("Set Local posiition: %s", set_local_position() ? "true" : "false");
-        ROS_INFO("RTK? %s", (use_rtk ? "true" : "false"));
-        ROS_INFO("Current position X: %f , Y: %f, Z: %f", current_local_pos.point.x, current_local_pos.point.y,
-                 (use_rtk ? current_rtk.altitude : current_gps.altitude));
-        first_time = false;
-    }
-
 }
 
 void LocalController::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_rtk = *msg;
-    if (first_time && use_rtk) {
-        ROS_INFO("Set Local posiition: %s", set_local_position() ? "true" : "false");
-        ROS_INFO("RTK? %s", (use_rtk ? "true" : "false"));
-        ROS_INFO("Current position X: %f , Y: %f, Z: %f", current_local_pos.point.x, current_local_pos.point.y,
-                 (use_rtk ? current_rtk.altitude : current_gps.altitude));
-        first_time = false;
-    }
-
 }
 
 
@@ -185,69 +160,17 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
     current_local_pos = *msg;
-    use_wp_list ? elapse_control_mission(doing_mission, type_mission) : elapse_control(doing_mission);
-}
-
-
-void LocalController::elapse_control(bool mission) {
-    static ros::Time start_time = ros::Time::now();
-    ros::Duration elapsed_time = ros::Time::now() - start_time;
-    double xCmd, yCmd, zCmd, yawCmd;
-    if (mission) {
-        if (elapsed_time > ros::Duration(1 / 20)) {
-            start_time = ros::Time::now();
-            local_position_ctrl(xCmd, yCmd, zCmd, yawCmd);
-        }
+    if (doing_mission) {
+        local_position_ctrl_mission(wp_n);
     }
 }
 
-void LocalController::elapse_control_mission(bool mission, int type_mission) {
-    static ros::Time start_time = ros::Time::now();
-    ros::Duration elapsed_time = ros::Time::now() - start_time;
-    double xCmd, yCmd, zCmd, yawCmd;
-    if (mission) {
-        if (type_mission == 0) {
-            if (elapsed_time > ros::Duration(1 / 20)) {
-                start_time = ros::Time::now();
-                local_position_ctrl_mission(xCmd, yCmd, zCmd, yawCmd, wp_n);
-            }
-        }
-        if (type_mission == 1) {
-            if (elapsed_time > ros::Duration(1 / 20)) {
-                start_time = ros::Time::now();
-
-                local_position_ctrl_semi_mission(xCmd, yCmd, zCmd, yawCmd, wp_n);
-            }
-        }
-    }
-}
-
-void LocalController::setTarget(float x, float y, float z, float yaw) {
-    target_offset[0] = x;
-    target_offset[1] = y;
-    target_offset[2] = z;
-    target_offset[3] = yaw;
-}
 
 bool LocalController::set_local_position() {
     dji_osdk_ros::SetLocalPosRef localPosReferenceSetter;
     set_local_pos_reference.call(localPosReferenceSetter);
 
     return (bool) localPosReferenceSetter.response.result;
-}
-
-bool LocalController::local_position_velocity(float vx, float vy, float vz, float vyaw) {
-    dji_osdk_ros::SetJoystickMode joystickMode;
-    joystickMode.request.horizontal_mode = joystickMode.request.HORIZONTAL_VELOCITY;
-    joystickMode.request.vertical_mode = joystickMode.request.VERTICAL_VELOCITY;
-    joystickMode.request.yaw_mode = joystickMode.request.YAW_RATE;
-    joystickMode.request.horizontal_coordinate = joystickMode.request.HORIZONTAL_GROUND;
-    joystickMode.request.stable_mode = joystickMode.request.STABLE_ENABLE;
-    joystick_mode.call(joystickMode);
-    ros::spinOnce();
-    ROS_INFO("Changed velocity: [%f, %f, %f, %f]", vx, vy, vz, vyaw);
-    return true;
-
 }
 
 void LocalController::set_gimbal_angles(float roll, float pitch, float yaw) {
@@ -263,42 +186,46 @@ void LocalController::set_gimbal_angles(float roll, float pitch, float yaw) {
 
 }
 
-void LocalController::local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd) {
-    dji_osdk_ros::FlightTaskControl control_task;
-    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
-    control_task.request.joystickCommand.x = xCmd;
-    control_task.request.joystickCommand.y = yawCmd;
-    control_task.request.joystickCommand.z = zCmd;
-    control_task.request.joystickCommand.yaw = yawCmd ;
-    control_task.request.posThresholdInM   = h_error;
-    control_task.request.yawThresholdInDeg = 2;
+bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh,
+                                          float yaw_thresh) {
+    dji_osdk_ros::FlightTaskControl control_task_point;
+    control_task_point.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
+    control_task_point.request.joystickCommand.x = xCmd;
+    control_task_point.request.joystickCommand.y = yCmd;
+    control_task_point.request.joystickCommand.z = zCmd;
+    control_task_point.request.joystickCommand.yaw = yawCmd;
+    control_task_point.request.posThresholdInM = pos_thresh;
+    control_task_point.request.yawThresholdInDeg = yaw_thresh;
 
-    if(control_task.response.result) {
+    task_control_client.call(control_task_point);
+
+    if (control_task_point.response.result) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         LocalController::obtain_control(false);
-        doing_mission = false;
-    }
+        return control_task_point.response.result;
+    } else { return control_task_point.response.result; }
 }
 
 void
-LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n) {
-    dji_osdk_ros::FlightTaskControl control_task;
-    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
-    control_task.request.joystickCommand.x = waypoint_l[waypoint_n][1];
-    control_task.request.joystickCommand.y = waypoint_l[waypoint_n][2];
-    control_task.request.joystickCommand.z = waypoint_l[waypoint_n][3];
-    control_task.request.joystickCommand.yaw = waypoint_l[waypoint_n][4] ;
-    control_task.request.posThresholdInM   = h_error;
-    control_task.request.yawThresholdInDeg = 2;
+LocalController::local_position_ctrl_mission(int waypoint_n) {
+    dji_osdk_ros::FlightTaskControl control_task_mission;
+    control_task_mission.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
+    control_task_mission.request.joystickCommand.x = waypoint_l[waypoint_n][1];
+    control_task_mission.request.joystickCommand.y = waypoint_l[waypoint_n][2];
+    control_task_mission.request.joystickCommand.z = waypoint_l[waypoint_n][3];
+    control_task_mission.request.joystickCommand.yaw = waypoint_l[waypoint_n][4];
+    control_task_mission.request.posThresholdInM = h_error;
+    control_task_mission.request.yawThresholdInDeg = yaw_error;
 
-    if(control_task.response.result) {
+    task_control_client.call(control_task_mission);
+
+    if (control_task_mission.response.result) {
         ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", wp_n,
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
         if (waypoint_n >= (int) waypoint_l.size() - 1) {
             LocalController::obtain_control(false);
             doing_mission = false;
-            use_wp_list = false;
         } else {
             if (take_photo) {
                 LocalController::acquire_photo(use_stereo);
@@ -306,30 +233,6 @@ LocalController::local_position_ctrl_mission(double &xCmd, double &yCmd, double 
             ros::Duration(2).sleep();
             wp_n++;
         }
-    }
-}
-
-void
-LocalController::local_position_ctrl_semi_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd,
-                                                  int waypoint_n) {
-    dji_osdk_ros::FlightTaskControl control_task;
-    control_task.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
-    control_task.request.joystickCommand.x = waypoint_l[waypoint_n][1];
-    control_task.request.joystickCommand.y = waypoint_l[waypoint_n][2];
-    control_task.request.joystickCommand.z = waypoint_l[waypoint_n][3];
-    control_task.request.joystickCommand.yaw = waypoint_l[waypoint_n][4];
-    control_task.request.posThresholdInM   = h_error;
-    control_task.request.yawThresholdInDeg = 2;
-
-    /** 0.1m or 10cms is the minimum error to reach target in x y and z axes.
-     This error threshold will have to change depending on aircraft/payload/wind conditions. */
-
-    if(control_task.response.result) {
-        ROS_INFO("REACHED WP - [%f. %f, %f] m @ %f deg", current_local_pos.point.x, current_local_pos.point.y,
-                 rpa_height, RAD2DEG(current_atti_euler.Yaw()));
-        doing_mission = false;
-        LocalController::obtain_control(false);
-        use_wp_list = false;
     }
 }
 

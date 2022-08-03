@@ -43,9 +43,6 @@
 
 #include <path_generator.hh>
 
-//#define DEG2RAD(DEG) ((DEG) * ((3.141592653589793) / (180.0)))
-//#define RAD2DEG(RAD) ((RAD) * (180.0) / (3.141592653589793))
-
 class LocalController {
 private:
     ros::NodeHandle nh_;
@@ -54,7 +51,6 @@ private:
 
     /// XYZ service
     ros::ServiceServer local_position_service;
-    ros::ServiceServer local_velocity_service;
     ros::ServiceServer start_mission_service;
     ros::ServiceServer horizontal_point_service;
 
@@ -66,6 +62,7 @@ private:
     ros::ServiceClient flight_task_control_service;
     ros::ServiceClient joystick_action;
     ros::ServiceClient joystick_mode;
+    ros::ServiceClient task_control_client;
     ros::ServiceClient camera_action_service;
     ros::ServiceClient set_local_pos_reference;
     ros::ServiceClient gimbal_control_client;
@@ -77,15 +74,12 @@ private:
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
 
-    float target_offset[4];
     float rpa_height;
 
     /// Internal references
-    bool use_rtk = false, first_time = true, doing_mission = false;
-    int type_mission = 0; /// 0 - full automated, 1 - semiautomatic
-    bool use_wp_list = false;
+    bool doing_mission = false;
     int wp_n = 1;
-    double v_error, h_error;
+    float yaw_error, h_error;
 
     bool take_photo = false;
     bool use_stereo = false;
@@ -104,7 +98,6 @@ public:
 
     bool set_local_position();
 
-    void setTarget(float x, float y, float z, float yaw);
 
     void local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg);
 
@@ -119,9 +112,6 @@ public:
     bool local_pos_service_cb(riser_inspection::LocalPosition::Request &req,
                               riser_inspection::LocalPosition::Response &res);
 
-    bool local_velocity_service_cb(riser_inspection::LocalVelocity::Request &req,
-                                   riser_inspection::LocalVelocity::Response &res);
-
     bool start_mission_service_cb(riser_inspection::StartMission::Request &req,
                                   riser_inspection::StartMission::Response &res);
 
@@ -130,21 +120,13 @@ public:
 
     bool obtain_control(bool ask);
 
-    bool local_position_velocity(float vx, float vy, float vz, float vyaw);
-
     void set_gimbal_angles(float roll, float pitch, float yaw);
 
     bool acquire_photo(bool stereo);
 
-    void local_position_ctrl(double &xCmd, double &yCmd, double &zCmd, double &yawCmd);
+    bool local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh, float yaw_thresh);
 
-    void local_position_ctrl_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n);
-
-    void local_position_ctrl_semi_mission(double &xCmd, double &yCmd, double &zCmd, double &yawCmd, int waypoint_n);
-
-    void elapse_control_mission(bool mission, int type_mission);
-
-    void elapse_control(bool mission);
+    void local_position_ctrl_mission(int waypoint_n);
 
     bool generate_WP(int csv_type);
 
