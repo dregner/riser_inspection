@@ -13,24 +13,9 @@
 
 #include "colormap.h"
 
-double RadToDeg = 180 / M_PI;
 
-
-static int counter = 0;
-
-float long_GPS;
-float lat_GPS;
-float alt_GPS;
-float long_RTK;
-float lat_RTK;
-float alt_RTK;
-
-std::string decimal(int r);
-
-static std::ofstream images_file;
 cv::Mat_<cv::Vec3b> disparity_color;
 
-cv::Mat disp_img;
 
 void callback(const stereo_msgs::DisparityImageConstPtr &msg) {
 
@@ -76,7 +61,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "disparity_show");
     ros::NodeHandle nh;
 
-    ros::Subscriber disp = nh.subscribe("/zed2/zed_node/disparity/disparity_image", 10, callback);
+    ros::Subscriber disp = nh.subscribe("/stereo_depth_perception/disparity_front_left_image", 10, callback);
 
     while (ros::ok()) {
         ros::spinOnce();

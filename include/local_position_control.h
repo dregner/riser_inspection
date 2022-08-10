@@ -81,7 +81,7 @@ private:
     int wp_n = 1;
     float yaw_error, h_error;
 
-    bool take_photo = false;
+    bool use_gimbal = false;
     bool use_stereo = false;
     int stereo_voo = 0;
     int camera_count = 1;
@@ -122,7 +122,7 @@ public:
 
     void set_gimbal_angles(float roll, float pitch, float yaw);
 
-    bool acquire_photo(bool stereo);
+    bool acquire_photo(bool stereo, bool gimbal);
 
     bool local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh, float yaw_thresh);
 

@@ -20,7 +20,6 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     nh.param("/riser_inspection/attitude_topic", attitude_topic, std::string("/dji_osdk_sdk/attitude"));
     nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_osdk_sdk/height_above_takeoff"));
     nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_osdk_sdk/local_position"));
-    nh.param("/riser_inspeciton/use_rtk", use_rtk, false);
     //! Subscribe topics
     gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
     rtk_sub = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &LocalController::rtk_callback, this);
@@ -90,11 +89,12 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
                                                riser_inspection::StartMission::Response &res) {
 
     doing_mission = true;
-    take_photo = req.take_photo;
+    use_gimbal = req.take_photo;
     h_error = req.position_thresh;
     yaw_error = req.yaw_thresh;
-    if (req.use_stereo) {
-        use_stereo = req.use_stereo;
+    use_stereo = req.use_stereo;
+
+    if (use_stereo) {
         stereo_vant::PointGray stereoAction;
         stereo_voo++;
         stereoAction.request.reset_counter = true;
@@ -227,33 +227,39 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
             LocalController::obtain_control(false);
             doing_mission = false;
         } else {
-            if (take_photo) {
-                LocalController::acquire_photo(use_stereo);
-            }
-            ros::Duration(2).sleep();
+            LocalController::acquire_photo(use_stereo, use_gimbal) ? ros::Duration(4).sleep() : ros::Duration(
+                    1).sleep();
             wp_n++;
         }
     }
 }
 
-bool LocalController::acquire_photo(bool stereo) {
+bool LocalController::acquire_photo(bool stereo, bool gimbal) {
+    dji_osdk_ros::CameraAction cameraAction;
+    stereo_vant::PointGray stereoAction;
+
     if (stereo) {
-        stereo_vant::PointGray stereoAction;
         stereoAction.request.reset_counter = false;
         stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
         stereoAction.request.file_name = "stereo_vant";
         stereo_v3d_service.call(stereoAction);
-
-    } else {
-        dji_osdk_ros::CameraAction cameraAction;
+        if (stereoAction.response.result) {
+            ROS_INFO("%Stereo image %i - %b", camera_count, stereoAction.response.result);
+            camera_count++;
+        }
+    }
+    if (gimbal) {
         cameraAction.request.camera_action = 0;
         camera_action_service.call(cameraAction);
         if (cameraAction.response.result) {
             ROS_INFO("Picture %i - %b", camera_count, cameraAction.response.result);
             camera_count++;
         }
-        return cameraAction.response.result;
     }
+    if (cameraAction.response.result || stereoAction.response.result) {
+        return true;
+    } else { return false; }
+
 }
 
 bool LocalController::generate_WP(int csv_type) {

@@ -3,7 +3,7 @@ uint8 SEMI_MISSION = 1
 uint8 FULL_MISSION = 2
 
 #request
-bool take_photo
+bool use_gimbal
 bool use_stereo
 uint8 control_type
 float32 position_thresh
