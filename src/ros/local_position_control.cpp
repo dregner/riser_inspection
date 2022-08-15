@@ -33,8 +33,6 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     //! Service topics
     obtain_control_sdk = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("obtain_release_control_authority");
     set_local_pos_reference = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
-    joystick_mode = nh.serviceClient<dji_osdk_ros::SetJoystickMode>("/set_joystick_mode");
-    joystick_action = nh.serviceClient<dji_osdk_ros::JoystickAction>("joystick_action");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
     //! Camera services

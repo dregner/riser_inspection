@@ -60,8 +60,6 @@ private:
     /// DJI Services
     ros::ServiceClient obtain_control_sdk;
     ros::ServiceClient flight_task_control_service;
-    ros::ServiceClient joystick_action;
-    ros::ServiceClient joystick_mode;
     ros::ServiceClient task_control_client;
     ros::ServiceClient camera_action_service;
     ros::ServiceClient set_local_pos_reference;
