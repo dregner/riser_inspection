@@ -89,7 +89,7 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
                                                riser_inspection::StartMission::Response &res) {
 
     doing_mission = true;
-    use_gimbal = req.take_photo;
+    use_gimbal = req.use_gimbal;
     h_error = req.position_thresh;
     yaw_error = req.yaw_thresh;
     use_stereo = req.use_stereo;
