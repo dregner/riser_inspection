@@ -33,8 +33,16 @@ int disp12MaxDiff = -1;
 int dispType = CV_16S;
 // Creating an object of StereoSGBM algorithm
 cv::Ptr<cv::StereoBM> stereo = cv::StereoBM::create();
-cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter ;
+cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter;
 cv::Ptr<cv::StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(stereo);
+cv::Mat left_intrinic = (cv::Mat_<double>(3, 3) << 459.15, 0.22858, 319.31, 0, 459.06, 231.4, 0, 0, 1.0000);
+cv::Mat left_dist = (cv::Mat_<double>(5, 1) << 0.041614, -0.031405, 0.0077662, -0.0027449, 0.00023564);
+cv::Mat right_intrinic = (cv::Mat_<double>(3, 3) << 460.4, -0.0056765, 329.22, 0, 460.58, 234.58, 0, 0, 1.0000);
+cv::Mat right_dist = (cv::Mat_<double>(5, 1) << 0.032129, 0.024637, -0.076301, 0.0001222, -0.0037569);
+cv::Mat R = (cv::Mat_<double>(3, 3)
+        << 0.999969, -0.004767, 0.006283, -0.004779, 0.999987, 0.001786, -0.006275, -0.001816, 0.999979);
+cv::Mat T = (cv::Mat_<double>(3, 1) << -112.8730, -0.2326, 0.0152);
+
 
 
 static const std::string OPENCV_WINDOW_S = "Stereo window";
@@ -83,19 +91,20 @@ public:
         cv::createTrackbar("minDisparity", OPENCV_WINDOW_D, &minDisparity, 25, on_trackbar11);
     }
 
-    void initStereoParam(){
+    void initStereoParam() {
+        cv::resizeWindow(OPENCV_WINDOW_D, 880, 680);
 
-        stereo->setNumDisparities(numDisparities);
-        stereo->setBlockSize(blockSize);
-        stereo->setPreFilterType(preFilterType);
-        stereo->setPreFilterSize(preFilterSize);
-        stereo->setPreFilterCap(preFilterCap);
-        stereo->setTextureThreshold(textureThreshold);
-        stereo->setUniquenessRatio(uniquenessRatio);
-        stereo->setSpeckleRange(speckleRange);
-        stereo->setSpeckleWindowSize(speckleWindowSize);
-        stereo->setDisp12MaxDiff(disp12MaxDiff);
-        stereo->setMinDisparity(minDisparity);
+        stereo->setNumDisparities(32);
+        stereo->setBlockSize(13);
+        stereo->setPreFilterType(1);
+        stereo->setPreFilterSize(13);
+        stereo->setPreFilterCap(36);
+        stereo->setTextureThreshold(0);
+        stereo->setUniquenessRatio(61);
+        stereo->setSpeckleRange(0);
+        stereo->setSpeckleWindowSize(0);
+        stereo->setDisp12MaxDiff(0);
+        stereo->setMinDisparity(0);
     }
 
     void initSubscriber(ros::NodeHandle &nh) {
@@ -126,12 +135,32 @@ public:
         // Calculating disparith using the StereoSGBM algorithm
         cv::Mat stereoBM_disp, stereoBM_16_disp;
         cv::Mat right_disp, filter_disp;
-        // Calculating disparith using the StereoBM algorithm
-        stereo->compute(imgL_grey, imgR_grey, stereoBM_disp);
-        right_matcher->compute(imgR_grey,imgL_grey, right_disp);
-        stereoBM_disp.convertTo(stereoBM_disp, CV_32F, 1);
-        stereoBM_disp.convertTo(stereoBM_16_disp, CV_16S, 1);
+        cv::Mat Q;
+        cv::Mat rect_L, rect_R, proj_L, proj_R;
+        cv::Mat rectified_mapping1,rectified_mapping2,img_rect_L, img_rect_R;
+        cv::stereoRectify(left_intrinic, left_dist, right_intrinic,
+                          right_dist, cv::Size(480, 640), R, T, rect_L, rect_R,
+                          proj_L, proj_R, Q, CV_CALIB_ZERO_DISPARITY, -1, cv::Size(0, 0));
 
+        // Calculating disparith using the StereoBM algorithm
+        cv::initUndistortRectifyMap(left_intrinic, left_dist, rect_L, proj_L,
+                                    cv::Size(480, 680), CV_32F,
+                                    rectified_mapping1, rectified_mapping2);
+        cv::remap(imgL_grey, img_rect_L, rectified_mapping1, rectified_mapping2, cv::INTER_LINEAR);
+        cv::initUndistortRectifyMap(right_intrinic, right_dist, rect_R, proj_R,
+                                    cv::Size(480, 680), CV_32F,
+                                    rectified_mapping1, rectified_mapping2);
+        cv::remap(imgR_grey, img_rect_R, rectified_mapping1, rectified_mapping2, cv::INTER_LINEAR);
+
+        stereo->compute(img_rect_L,img_rect_R,stereoBM_disp);
+        stereo->compute(img_rect_L,img_rect_R,stereoBM_16_disp);
+
+        stereoBM_disp.convertTo(stereoBM_disp, CV_32F, 0.01);
+        stereoBM_16_disp.convertTo(stereoBM_16_disp, CV_16S, 10);
+
+
+//        cv::Ptr<cv::StereoMatcher> right_stereo = cv::ximgproc::createRightMatcher(stereo);
+//        right_matcher->compute(img_rect_L,img_rect_R,stereoBM_16_disp);
 //        disparity.convertTo(disparity,CV_8UC1, 1);
         // NOTE: compute returns a 16bit signed single channel image,
         // CV_16S containing a disparity map scaled by 16. Hence it
@@ -141,32 +170,35 @@ public:
 
         // Scaling down the disparity values and normalizing them
         stereoBM_disp = (stereoBM_disp / (float) 16.0 - (float) minDisparity) / ((float) numDisparities);
+//        stereoBM_16_disp = (stereoBM_16_disp / (float) 16.0 - (float) minDisparity) / ((float) numDisparities);
         double min_val, max_val;
         cv::minMaxLoc(stereoBM_16_disp, &min_val, &max_val, NULL, NULL);
-        stereoBM_16_disp.convertTo(stereoBM_16_disp, CV_8U, 255/(max_val-min_val),-min_val / (max_val - min_val));
+        stereoBM_16_disp.convertTo(stereoBM_16_disp, CV_8U, 255 / (max_val - min_val), -min_val / (max_val - min_val));
 
 
 
 
         // Normalizing the disparity map for better visualisation
         cv::normalize(stereoBM_disp, stereoBM_disp, 0, 255, cv::NORM_MINMAX, CV_8U); //CV_8UC1
+        cv::normalize(stereoBM_16_disp, stereoBM_16_disp, 0, 255, cv::NORM_MINMAX, CV_8U); //CV_8UC1
 
 //        // Displaying the disparity map
 //        cv::imshow(OPENCV_WINDOW_D, stereoBM_16_disp);
-        view_stereo_images(imgL_grey, imgR_grey, OPENCV_WINDOW_S);
+        view_stereo_images(img_rect_L, img_rect_R, OPENCV_WINDOW_S);
         view_stereo_images(stereoBM_disp, stereoBM_16_disp, OPENCV_WINDOW_D);
 
         cv::waitKey(3);
     }
 
-    void view_stereo_images(cv::Mat image1, cv::Mat image2, std::string win_name){
+    void view_stereo_images(cv::Mat image1, cv::Mat image2, std::string win_name) {
         cv::Mat image_to_show;
         cv::hconcat(image1, image2, image_to_show);
 
         cv::resize(image_to_show, image_to_show,
-                   cv::Size(image1.cols*2, image1.rows),
+                   cv::Size(image1.cols * 2, image1.rows),
                    (0, 0), (0, 0), cv::INTER_LINEAR);
-        cv::imshow(win_name, image_to_show);    }
+        cv::imshow(win_name, image_to_show);
+    }
     // Defining callback functions for the trackbars to update parameter values
 
 
@@ -180,23 +212,20 @@ public:
         blockSize = blockSize * 2 + 5;
     }
 
-    static void on_trackbar3( int, void* )
-    {
+    static void on_trackbar3(int, void *) {
         stereo->setPreFilterType(preFilterType);
     }
 
-    static void on_trackbar4( int, void* )
-    {
-        stereo->setPreFilterSize(preFilterSize*2+5);
-        preFilterSize = preFilterSize*2+5;
+    static void on_trackbar4(int, void *) {
+        stereo->setPreFilterSize(preFilterSize * 2 + 5);
+        preFilterSize = preFilterSize * 2 + 5;
     }
 
     static void on_trackbar5(int, void *) {
         stereo->setPreFilterCap(preFilterCap);
     }
 
-    static void on_trackbar6( int, void* )
-    {
+    static void on_trackbar6(int, void *) {
         stereo->setTextureThreshold(textureThreshold);
     }
 
