@@ -57,7 +57,7 @@ bool LocalController::obtain_control(bool ask) {
     obtain_control_sdk.call(authority);
 
     if (!authority.response.result) {
-        ROS_ERROR("Do not understood");
+        ROS_ERROR("Can't get control authority");
         return authority.response.result;
     }
     ROS_INFO("SDK Controlling: %s", ask ? "True" : "False");
