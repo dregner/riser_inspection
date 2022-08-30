@@ -10,7 +10,49 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <dji_telemetry.hpp>
+#include <math.h>
 #define RAD2DEG(RAD) ((RAD) * 180 / M_PI)
+
+#include <iostream>
+#include <math.h>
+using namespace std;
+
+struct float4{
+    float x;
+    float y;
+    float z;
+    float w;
+};
+float4 make_float4(float x, float y, float z, float w){
+    float4 quat = {x,y,z,w};
+    return quat;
+}
+float dot(float4 a)
+{
+    return (((a.x * a.x) + (a.y * a.y)) + (a.z * a.z)) + (a.w * a.w);
+}
+float4 normalize(float4 q)
+{
+    float num = dot(q);
+    float inv = 1.0f / (sqrtf(num));
+    return make_float4(q.x * inv, q.y * inv, q.z * inv, q.w * inv);
+}
+float4 create_from_axis_angle(const float &xx, const float &yy, const float &zz, const float &a)
+{
+    // Here we calculate the sin( theta / 2) once for optimization
+    float factor = sinf( a / 2.0f );
+
+    float4 quat;
+    // Calculate the x, y and z of the quaternion
+    quat.x = xx * factor;
+    quat.y = yy * factor;
+    quat.z = zz * factor;
+
+    // Calcualte the w value by cos( theta / 2 )
+    quat.w = cosf( a / 2.0f );
+    return normalize(quat);
+}
+
 DJI::OSDK::Telemetry::Vector3f quaternionToEulerAngle(const geometry_msgs::QuaternionStamped::ConstPtr &quat)
 {
     DJI::OSDK::Telemetry::Vector3f eulerAngle;
@@ -27,7 +69,24 @@ DJI::OSDK::Telemetry::Vector3f quaternionToEulerAngle(const geometry_msgs::Quate
     eulerAngle.z = atan2(t1, t0);
     return eulerAngle;
 }
-
+float stupid_offset(float yaw){
+    if(0 <= yaw <= 90){
+        yaw = -yaw +90;
+        return yaw;
+    }
+    if(90 < yaw < 180){
+        yaw = -yaw +180;
+        return yaw;
+    }
+    if(-90 < yaw < 0){
+        yaw = yaw -180;
+        return yaw;
+    }
+    if(-180 < yaw < -90){
+        yaw = yaw - 90;
+        return yaw;
+    }
+}
 void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
               const geometry_msgs::QuaternionStamped::ConstPtr &atti_msg) {
 
@@ -36,13 +95,16 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
     roll = RAD2DEG(quaternionToEulerAngle(atti_msg).y);
     pitch = RAD2DEG(quaternionToEulerAngle(atti_msg).x);
     ignition::math::Quaterniond rpy;
+    float yaw_c = stupid_offset(yaw);
+    if (yaw_c < -180) { yaw_c = yaw_c + 360; }
+    if (yaw_c > 180) { yaw_c = yaw_c - 360; }
     rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
 
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << RAD2DEG(rpy.Yaw()) << std::endl;
     std::cout << "DJI Function" << std::endl;
     std::cout << "R: " << roll << "\tP: " << pitch << "\tY: " << yaw << std::endl;
-    std::cout << "RAD" << std::endl;
-    std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
+    std::cout << "OFFSET YAW: " << yaw_c <<std::endl;
+//    std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
     std::cout << "GPS" << std::endl;
     std::cout << "LAT: " << gps_msg->latitude << "\tLON: " << gps_msg->longitude << "\tALT: " << gps_msg->altitude << std::endl;
     std::cout << "\033[2J\033[1;1H";     // clear terminal
