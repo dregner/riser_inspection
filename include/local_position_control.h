@@ -29,7 +29,6 @@
 #include <riser_inspection/LocalPosition.h>
 #include <riser_inspection/LocalVelocity.h>
 #include <riser_inspection/StartMission.h>
-#include <riser_inspection/hPoint.h>
 #include <stereo_vant/PointGray.h>
 // DJI SDK includes
 #include <dji_osdk_ros/FlightTaskControl.h>
@@ -52,7 +51,6 @@ private:
     /// XYZ service
     ros::ServiceServer local_position_service;
     ros::ServiceServer start_mission_service;
-    ros::ServiceServer horizontal_point_service;
 
     /// Stereo VANT3D
     ros::ServiceClient stereo_v3d_service;
@@ -112,9 +110,6 @@ public:
 
     bool start_mission_service_cb(riser_inspection::StartMission::Request &req,
                                   riser_inspection::StartMission::Response &res);
-
-    bool horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
-                                  riser_inspection::hPoint::Response &res);
 
     bool obtain_control(bool ask);
 

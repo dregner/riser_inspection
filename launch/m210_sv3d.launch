@@ -4,10 +4,9 @@
     <arg name="run_stereo_image_proc"     default="false" />
 
     <!-- DJI SDK NODE -->
-    <node pkg="dji_sdk" type="dji_sdk_node" name="dji_sdk" output="screen">
-        <!-- node parameters -->
+    <node pkg="dji_osdk_ros" type="dji_vehicle_node" name="vehicle_node" output="screen">
         <param name="acm_name" type="string" value="/dev/ttyACM0"/>
-        <param name="serial_name" type="string" value="/dev/ttyTHS2"/>
+        <param name="serial_name" type="string" value="/dev/ttyTHS1"/>
         <param name="baud_rate" type="int" value="1000000"/>
         <param name="app_id" type="int" value="1076017"/>
         <param name="app_version" type="int" value="1"/>
@@ -15,20 +14,7 @@
         <param name="enc_key" type="string" value="6bd1d26f8dd897e4b6864aebd9fce5fa41070d27d2e63867f2b18c598e6c2fc3"/>
         <param name="use_broadcast" type="bool" value="false"/>
     </node>
-    <!--&lt;!&ndash; RISER INSPECTION NODE &ndash;&gt;
-    <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
-        <param name="gps_topic"         type="string"   value="/dji_osdk_ros/gps_position" />
-        <param name="rtk_topic"         type="string"   value="/dji_osdk_ros/rtk_position" />
-        <param name="attitude_topic"    type="string"   value="/dji_osdk_ros/attitude" />
-        <param name="root_directory"    type="string"   value="/media/vant3d-media"/>
-        <param name="wait_time"         type="int"      value="6"/>     &lt;!&ndash; SECONDS&ndash;&gt;
-        <param name="riser_distance"    type="int"      value="5"/>     &lt;!&ndash;METERS&ndash;&gt;
-        <param name="riser_diameter"    type="int"      value="300"/>   &lt;!&ndash;MILLIMETER&ndash;&gt;
-        <param name="horizontal_points" type="int"      value="5"/>     &lt;!&ndash;Nº of horizontal stops&ndash;&gt;
-        <param name="vertical_points"   type="int"      value="4"/>     &lt;!&ndash;Nº of vertical stops at each horizontal point&ndash;&gt;
-        <param name="delta_H"           type="int"      value="15"/>    &lt;!&ndash;DEGREES&ndash;&gt;
-        <param name="delta_V"           type="int"      value="300"/>   &lt;!&ndash;MILLIMETERS&ndash;&gt;
-    </node>-->
+
     <!-- SPINNAKER STEREO NODE -->
   <node pkg="nodelet" type="nodelet" name="camera_nodelet_manager" args="manager" />
     <group ns="$(arg camera_name)" >

@@ -45,8 +45,6 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
     start_mission_service = nh.advertiseService("/local_position/start_mission",
                                                 &LocalController::start_mission_service_cb, this);
-    horizontal_point_service = nh.advertiseService("/local_position/horizontal_point",
-                                                   &LocalController::horizontal_pt_service_cb, this);
 
 
 }
@@ -71,7 +69,8 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
         if (LocalController::obtain_control(true)) {
             ROS_INFO("Received points x: %f, y: %f, z: %f, yaw: %f", req.x, req.y, req.z, req.yaw);
             ROS_INFO("Threshold: %f m - %f deg", req.position_thresh, req.yaw_thresh);
-            return (res.result = local_position_ctrl(req.x, req.y, req.z, req.yaw, req.position_thresh, req.yaw_thresh));
+            return (res.result = local_position_ctrl(req.x, req.y, req.z, req.yaw, req.position_thresh,
+                                                     req.yaw_thresh));
         } else {
             ROS_ERROR("Did not get Control Authority");
             return (res.result = false);
@@ -91,50 +90,25 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
     h_error = req.position_thresh;
     yaw_error = req.yaw_thresh;
     use_stereo = req.use_stereo;
-    LocalController::set_local_position();
-    if (use_stereo) {
-        stereo_vant::PointGray stereoAction;
-        stereo_voo++;
-        stereoAction.request.reset_counter = true;
-        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
-        stereoAction.request.file_name = "stereo_vant";
-        stereo_v3d_service.call(stereoAction);
-    } else {
-        LocalController::set_gimbal_angles(0, 0, 0);
-    }
-    generate_WP(2);
-    if (req.autonomous_mission) {
-        return (res.result = LocalController::obtain_control(true));
-    } else { return (res.result = true); }
+    wp_n = 1;
+    if (LocalController::set_local_position()) {
+        if (use_stereo) {
+            stereo_vant::PointGray stereoAction;
+            stereo_voo++;
+            stereoAction.request.reset_counter = true;
+            stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+            stereoAction.request.file_name = "stereo_vant";
+            stereo_v3d_service.call(stereoAction);
+        } else {
+            LocalController::set_gimbal_angles(0, 0, 0);
+        }
+        generate_WP(2);
+        if (req.autonomous_mission) {
+            return (res.result = LocalController::obtain_control(true));
+        } else { return (res.result = true); }
+    } else { return (res.result = false); }
 }
 
-bool LocalController::horizontal_pt_service_cb(riser_inspection::hPoint::Request &req,
-                                               riser_inspection::hPoint::Response &res) {
-    ROS_INFO("Received new horizontal point number %i", req.number);
-    int wp_number = req.number - 1;
-    try {
-
-        if (wp_number <= (int) waypoint_list.size() - 1) {
-            if (LocalController::obtain_control(true)) {
-
-                ROS_INFO("Set new H point [%f, %f, %f] @ %f", waypoint_list[wp_number][1], waypoint_list[wp_number][2],
-                         rpa_height, waypoint_list[wp_number][4]);
-                ROS_INFO("Threshold: %f m - %f deg", h_error, yaw_error);
-                return (res.result = local_position_ctrl(waypoint_list[wp_number][1], waypoint_list[wp_number][2],
-                                                        0, waypoint_list[wp_number][4],
-                                                        h_error, yaw_error));
-            } else {
-                ROS_ERROR("Did not get Control Authority");
-                return (res.result = false);
-            }
-        } else { doing_mission = false; }
-    }
-    catch (ros::Exception &e) {
-        ROS_ERROR("ROS error %s", e.what());
-        return (res.result = false);
-    }
-
-}
 
 void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
     rpa_height = msg->data;
@@ -154,6 +128,7 @@ void LocalController::local_position_callback(const geometry_msgs::PointStamped:
         local_position_ctrl_mission(wp_n);
     }
 }
+
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
 }
