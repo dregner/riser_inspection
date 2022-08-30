@@ -9,21 +9,38 @@
 #include <ignition/math/Pose3.hh>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
-
+#include <dji_telemetry.hpp>
 #define RAD2DEG(RAD) ((RAD) * 180 / M_PI)
+DJI::OSDK::Telemetry::Vector3f quaternionToEulerAngle(const geometry_msgs::QuaternionStamped::ConstPtr &quat)
+{
+    DJI::OSDK::Telemetry::Vector3f eulerAngle;
+    double q2sqr = quat->quaternion.y * quat->quaternion.y;
+    double t0 = -2.0 * (q2sqr + quat->quaternion.z * quat->quaternion.z) + 1.0;
+    double t1 = 2.0 * (quat->quaternion.x * quat->quaternion.y + quat->quaternion.w * quat->quaternion.z);
+    double t2 = -2.0 * (quat->quaternion.x * quat->quaternion.z - quat->quaternion.w * quat->quaternion.y);
+    double t3 = 2.0 * (quat->quaternion.y * quat->quaternion.z + quat->quaternion.w * quat->quaternion.x);
+    double t4 = -2.0 * (quat->quaternion.x * quat->quaternion.x + q2sqr) + 1.0;
+    t2 = (t2 > 1.0) ? 1.0 : t2;
+    t2 = (t2 < -1.0) ? -1.0 : t2;
+    eulerAngle.x = asin(t2);
+    eulerAngle.y = atan2(t3, t4);
+    eulerAngle.z = atan2(t1, t0);
+    return eulerAngle;
+}
 
 void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
               const geometry_msgs::QuaternionStamped::ConstPtr &atti_msg) {
 
+    float roll, pitch, yaw;
+    yaw = RAD2DEG(quaternionToEulerAngle(atti_msg).z);
+    roll = RAD2DEG(quaternionToEulerAngle(atti_msg).y);
+    pitch = RAD2DEG(quaternionToEulerAngle(atti_msg).x);
     ignition::math::Quaterniond rpy;
     rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
-    float yaw = RAD2DEG(rpy.Yaw())-90 ;
-    if (yaw < -180) { yaw = RAD2DEG(rpy.Yaw()) - 90 + 360; }
-    if (yaw > 180) { yaw = RAD2DEG(rpy.Yaw())- 90 - 360; }
 
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << RAD2DEG(rpy.Yaw()) << std::endl;
-    std::cout << "OFFSET" << std::endl;
-    std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << - yaw << std::endl;
+    std::cout << "DJI Function" << std::endl;
+    std::cout << "R: " << roll << "\tP: " << pitch << "\tY: " << yaw << std::endl;
     std::cout << "RAD" << std::endl;
     std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
     std::cout << "GPS" << std::endl;
