@@ -79,8 +79,8 @@ int main(int argc, char **argv) {
 
     message_filters::Subscriber<stereo_msgs::DisparityImage> disp_sub(nh, "/zed2/zed_node/disparity/disparity_image",
                                                                       10);
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_pose(nh, "/dji_sdk/gps_position", 100);
-    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti_sub(nh, "/dji_sdk/attitude", 100);
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps_pose(nh, "/dji_osdk_ros/gps_position", 100);
+    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti_sub(nh, "/dji_osdk_ros/attitude", 100);
 
 
     images_file.open("disparity_zed.txt");

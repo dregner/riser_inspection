@@ -17,9 +17,9 @@
     </node>
     <!--&lt;!&ndash; RISER INSPECTION NODE &ndash;&gt;
     <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
-        <param name="gps_topic"         type="string"   value="/dji_sdk/gps_position" />
-        <param name="rtk_topic"         type="string"   value="/dji_sdk/rtk_position" />
-        <param name="attitude_topic"    type="string"   value="/dji_sdk/attitude" />
+        <param name="gps_topic"         type="string"   value="/dji_osdk_ros/gps_position" />
+        <param name="rtk_topic"         type="string"   value="/dji_osdk_ros/rtk_position" />
+        <param name="attitude_topic"    type="string"   value="/dji_osdk_ros/attitude" />
         <param name="root_directory"    type="string"   value="/media/vant3d-media"/>
         <param name="wait_time"         type="int"      value="6"/>     &lt;!&ndash; SECONDS&ndash;&gt;
         <param name="riser_distance"    type="int"      value="5"/>     &lt;!&ndash;METERS&ndash;&gt;
@@ -85,9 +85,9 @@
     </group>
     <!-- V3D STEREO NODE -->
     <node pkg="stereo_vant" type="stereo_vant3d_node" name="stereo_vant3d" output="screen">
-        <param name="gps_topic" type="string" value="/dji_sdk/gps_position" />
-        <param name="rtk_topic" type="string" value="/dji_sdk/gps_position" />
-        <param name="imu_topic" type="string" value="/dji_sdk/imu" />
+        <param name="gps_topic" type="string" value="/dji_osdk_ros/gps_position" />
+        <param name="rtk_topic" type="string" value="/dji_osdk_ros/gps_position" />
+        <param name="imu_topic" type="string" value="/dji_osdk_ros/imu" />
         <param name="camera_left_topic" type="string" value="/stereo/left/image_raw" />
         <param name="camera_right_topic" type="string" value="/stereo/right/image_raw" />
     </node>

@@ -72,12 +72,12 @@ private:
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
 
-    float rpa_height;
+    float rpa_height = 0;
 
     /// Internal references
     bool doing_mission = false;
     int wp_n = 1;
-    float yaw_error, h_error;
+    float yaw_error{}, h_error{};
 
     bool use_gimbal = false;
     bool use_stereo = false;
@@ -85,7 +85,7 @@ private:
     int camera_count = 1;
 
     PathGenerate pathGenerator;
-    std::vector<std::vector<float>> waypoint_l;
+    std::vector<std::vector<float>> waypoint_list;
 
 public:
     LocalController();

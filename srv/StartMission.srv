@@ -5,7 +5,7 @@ uint8 FULL_MISSION = 2
 #request
 bool use_gimbal
 bool use_stereo
-uint8 control_type
+bool autonomous_mission
 float32 position_thresh
 float32 yaw_thresh
 ---

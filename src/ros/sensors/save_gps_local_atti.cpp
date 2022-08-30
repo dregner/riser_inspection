@@ -41,9 +41,9 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "position_save_node");
     ros::NodeHandle nh;
 
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps(nh, "/dji_sdk/gps_position", 1);
-    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti(nh, "/dji_sdk/attitude", 1);
-    message_filters::Subscriber<geometry_msgs::PointStamped> local(nh, "/dji_sdk/local_position", 1);
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps(nh, "/dji_osdk_ros/gps_position", 1);
+    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti(nh, "/dji_osdk_ros/attitude", 1);
+    message_filters::Subscriber<geometry_msgs::PointStamped> local(nh, "/dji_osdk_ros/local_position", 1);
 
     sensor_data.open("position_data.txt");
     gps_covariance.open("gps_covariance.txt");

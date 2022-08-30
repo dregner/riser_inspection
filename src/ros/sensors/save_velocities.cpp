@@ -27,8 +27,8 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "save_velocities");
     ros::NodeHandle nh;
 
-    message_filters::Subscriber<geometry_msgs::Vector3Stamped> ground_vel(nh, "/dji_sdk/acceleration_ground_fused", 1);
-    message_filters::Subscriber<geometry_msgs::Vector3Stamped> angular_vel(nh, "/dji_sdk/angular_velocity_fused", 1);
+    message_filters::Subscriber<geometry_msgs::Vector3Stamped> ground_vel(nh, "/dji_osdk_ros/acceleration_ground_fused", 1);
+    message_filters::Subscriber<geometry_msgs::Vector3Stamped> angular_vel(nh, "/dji_osdk_ros/angular_velocity_fused", 1);
 
     sensor_data.open("velocity_data.txt");
     sensor_data << "Ground E" << "\t" << "Ground N" << "\t" << "Up" << "\t" << "p" << "\t" << "q" << "\t" << "r" << std::endl;

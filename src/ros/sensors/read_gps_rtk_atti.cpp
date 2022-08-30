@@ -40,9 +40,9 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "gps_rtk_atti_node");
     ros::NodeHandle nh;
 
-    message_filters::Subscriber<sensor_msgs::NavSatFix> gps(nh, "/dji_sdk/gps_position", 1);
-    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk(nh, "/dji_sdk/rtk_position", 1);
-    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti(nh, "/dji_sdk/attitude", 1);
+    message_filters::Subscriber<sensor_msgs::NavSatFix> gps(nh, "/dji_osdk_ros/gps_position", 1);
+    message_filters::Subscriber<sensor_msgs::NavSatFix> rtk(nh, "/dji_osdk_ros/rtk_position", 1);
+    message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti(nh, "/dji_osdk_ros/attitude", 1);
 
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped> MySyncPolicy;

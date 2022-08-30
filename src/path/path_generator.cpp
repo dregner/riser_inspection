@@ -12,180 +12,180 @@ PathGenerate::~PathGenerate() = default;
 
 void PathGenerate::reset() {
     firstTime = true;
+    delta_cartesian_points_.clear();
+    h_xy_points_.clear();
+    gnss_points_.clear();
 }
 
 
 void PathGenerate::setInspectionParam(double dist, float d_cyl, int n_h, int n_v, int deltaDEG, float deltaALT) {
     d_cyl_ = d_cyl / 1000;
-    dist_ = dist;
-    angleCount_ = n_h;
-    altitudeCount_ = n_v;
-    deltaAngle_ = deltaDEG;
-    deltaAltitude_ = deltaALT / 1000;
+    riser_dist_ = dist;
+    horizontal_pts_ = n_h;
+    vertical_pts_ = n_v;
+    delta_angle_ = deltaDEG;
+    delta_altitude_ = deltaALT / 1000;
 }
 
 void PathGenerate::setInitCoord(double lat, double lon, float alt, int head) {
-    lon0_ = lon;
-    lat0_ = lat;
-    alt0_ = alt;
-    head0_ = head;
+    gnss_initial.clear();
+    gnss_initial.push_back((float) lat);
+    gnss_initial.push_back((float) lon);
+    gnss_initial.push_back((float) alt);
+    gnss_initial.push_back((float) head);
 }
 
 void PathGenerate::setInitCoord_XY(double x, double y, double alt, int head) {
-    xyz[0] = x;
-    xyz[1] = y;
-    xyz[2] = alt;
-    head0_ = head;
+    xyz_initial.clear();
+    xyz_initial.push_back((float) x);
+    xyz_initial.push_back((float) y);
+    xyz_initial.push_back((float) alt);
+    xyz_initial.push_back((float) head);
 }
 
-void PathGenerate::inspectionAngle2Heading(int polar_angle) {
+void PathGenerate::setCartesianPoints() {
+    float start_angle;
+    if (horizontal_pts_ % 2 == 1) { start_angle = (-delta_angle_ * horizontal_pts_ / 2) + delta_angle_ / 2; }
+    else { start_angle = (-horizontal_pts_ * round(delta_angle_ / 2)); }
 
-    int heading = -polar_angle + head0_;
-    /// Conditions to keep range - 180 to 180
-    if (heading < -180) { heading = heading + 360; }
-    if (heading > 180) { heading = heading - 360; }
-    heading_.push_back(polar_angle);
-    waypoint_[3] = heading;
+    float xref = (riser_dist_ + d_cyl_ / 2) * cos(DEG2RAD(xyz_initial.at(3)));
+    float yref = (riser_dist_ + d_cyl_ / 2) * sin(DEG2RAD(xyz_initial.at(3)));
+    float abs_alt = xyz_initial.at(2);
+    for (int i = 0; i < horizontal_pts_; i++) {
+        float r = (float) riser_dist_ + d_cyl_ / 2;
+        float angle = start_angle + (float) (i * delta_angle_) + xyz_initial.at(3);
+        if (angle < -180) { angle = angle + 360; }
+        if (angle > 180) { angle = angle - 360; }
+        float x = r * cos(DEG2RAD(angle)) - xref;
+        float y = r * sin(DEG2RAD(angle)) - yref;
+        polar_points_.push_back({r, angle});
+        h_xy_points_.push_back({x, y});
+    }
+
+    for (int i = 0; i < (int) h_xy_points_.size(); i++) {
+        float dx, dy;
+        if (i == 0) {
+            dx = h_xy_points_[i][0];
+            dy = h_xy_points_[i][1];
+        } else {
+            dx = h_xy_points_[i - 1][0] - h_xy_points_[i][0];
+            dy = h_xy_points_[i - 1][1] - h_xy_points_[i][1];
+        }
+        for (int j = 0; j < vertical_pts_; j++) {
+            int vertical;
+            float z;
+            i % 2 == 1 ? vertical = 1 : vertical = -1;
+            j == 0 ? z = 0 : z = (float) vertical * delta_altitude_;
+            delta_cartesian_points_.push_back({dx, dy, z, polar_points_[i][1]});
+            cartesian_points_.push_back(
+                    {h_xy_points_[i][0], h_xy_points_[i][1], abs_alt + (float) j * vertical * delta_altitude_,
+                     polar_points_[i][1]});
+            abs_alt = abs_alt + (float) j * vertical * delta_altitude_;
+        }
+    }
 }
 
-void PathGenerate::polar2cart(double r, double alpha, double r_ref, double alpha_ref) {
-    xy_array_[0] = r * cos(DEG2RAD(alpha)) - (r_ref * cos(DEG2RAD(alpha_ref)));
-    xy_array_[1] = r * sin(DEG2RAD(alpha)) - (r_ref * sin(DEG2RAD(alpha_ref)));
-
-}
-
-void PathGenerate::cart2gcs(double altitude) {
+void PathGenerate::setGNSSpoints() {
     int R = 6371000; // Earth radius
-    double x0 = R * DEG2RAD(lon0_) * cos(DEG2RAD(lon0_)); // Initial Position X
-    double y0 = R * DEG2RAD(lat0_); // Initial Position Y
-    double x = xy_array_[0] + x0;
-    double y = xy_array_[1] + y0;
-    waypoint_[0] = RAD2DEG(y / R);
-    waypoint_[1] = RAD2DEG(x / (R * cos(DEG2RAD(lon0_))));
-    waypoint_[2] = altitude;
-}
-
-void PathGenerate::csv_save_UGCS(double *wp_array, float altitude) {
-    if (firstTime) {
-        saved_wp_ << "WP,Latitude,Longitude,AltitudeAMSL,UavYaw,Speed,WaitTime,Picture" << std::endl;
-        firstTime = false;
-        waypoint_counter = 1;
-    }
-    if (saved_wp_.is_open()) {
-        if (std::abs(alt0_ - altitude) < 0.01 ||
-            std::abs((alt0_ + deltaAltitude_ * ((float) altitudeCount_ - 1)) - altitude) < 0.01) {
-            saved_wp_ << waypoint_counter << ","
-                      << std::setprecision(10) << wp_array[0] << ","
-                      << std::setprecision(10) << wp_array[1] << ","
-                      << std::setprecision(10) << wp_array[2] << ","
-                      << std::setprecision(10) << wp_array[3] << ","
-                      << 0.1 << "," << 2 << ",TRUE" << "\n";
-            waypoint_counter++;
+    double x0 = R * DEG2RAD(gnss_initial.at(1)) * cos(DEG2RAD(gnss_initial.at(1))); // Initial Position X
+    double y0 = R * DEG2RAD(gnss_initial.at(0)); // Initial Position Y
+    for (int i = 0; i < (int) h_xy_points_.size(); i++) {
+        double x = h_xy_points_[i][0] + x0;
+        double y = h_xy_points_[i][0] + y0;
+        for (int j = 0; j < vertical_pts_; j++) {
+            int vertical;
+            if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
+            float altitude = gnss_initial.at(2) + j * vertical * delta_altitude_;
+            gnss_points_.push_back(
+                    {(float) RAD2DEG(y / R), (float) RAD2DEG(x / (R * cos(DEG2RAD(gnss_initial.at(1))))), altitude,
+                     polar_points_[i][1]});
         }
     }
 }
 
-void PathGenerate::csv_save_DJI(double *wp_array, int row) {
-    for (int i = 0; i < row; i++) {
-        if (saved_wp_.is_open()) {
-            if (i != row - 1) { saved_wp_ << std::setprecision(10) << wp_array[i] << ", "; }
-            else { saved_wp_ << std::setprecision(10) << wp_array[i] << "\n"; }
+void PathGenerate::save_cartesian() {
+    if (firstTime) {
+        saved_wp_ << "WP,X,Y,Z,Yaw" << std::endl;
+        firstTime = false;
+    }
+    if (saved_wp_.is_open()) {
+        for (int k = 0; k < (int) cartesian_points_.size(); k++) {
+            saved_wp_ << k + 1 << ","
+                      << std::setprecision(10) << cartesian_points_[k][0] << ","
+                      << std::setprecision(10) << cartesian_points_[k][1] << ","
+                      << std::setprecision(4) << cartesian_points_[k][2] << ","
+                      << std::setprecision(4) << cartesian_points_[k][3] << "\n";
         }
     }
 }
 
-void PathGenerate::csv_save_XY_yaw(double *wp_array, double yaw, int i) {
-    static int angle_count;
+
+void PathGenerate::save_delta_cartesian() {
     if (firstTime) {
-        saved_wp_ << "WP,X,Y,UavYaw" << std::endl;
+        saved_wp_ << "WP,X,Y,Z,Yaw" << std::endl;
         firstTime = false;
-        waypoint_counter = 1;
-        angle_count = i;
     }
     if (saved_wp_.is_open()) {
-        if(angle_count == i) {
-            saved_wp_ << waypoint_counter << ","
-                      << std::setprecision(10) << wp_array[1] + xyz[0] << ","
-                      << std::setprecision(10) << wp_array[0] + xyz[1] << ","
-                      << std::setprecision(3) << yaw << "\n";
-            waypoint_counter++;
-            angle_count++;
+        for (int k = 0; k < (int) delta_cartesian_points_.size(); k++) {
+            saved_wp_ << k + 1 << ","
+                      << std::setprecision(10) << delta_cartesian_points_[k][0] << ","
+                      << std::setprecision(10) << delta_cartesian_points_[k][1] << ","
+                      << std::setprecision(4) << delta_cartesian_points_[k][2] << ","
+                      << std::setprecision(4) << delta_cartesian_points_[k][3] << "\n";
         }
     }
 }
 
-void PathGenerate::csv_save_XYZ_yaw(double *wp_array, double z, double yaw) {
+void PathGenerate::save_gnss() {
     if (firstTime) {
-        saved_wp_ << "WP,X,Y,Z,UavYaw" << std::endl;
+        saved_wp_ << "WP,LAT,LON,ALT,Yaw" << std::endl;
         firstTime = false;
-        waypoint_counter = 1;
     }
     if (saved_wp_.is_open()) {
-        saved_wp_ << waypoint_counter << ","
-                  << std::setprecision(10) << wp_array[1] + xyz[0] << ","
-                  << std::setprecision(10) << wp_array[0] + xyz[1] << ","
-                  << std::setprecision(3) << z << ","
-                  << std::setprecision(3) << yaw << "\n";
-        waypoint_counter++;
+        for (int k = 0; k < (int) gnss_points_.size(); k++) {
+            saved_wp_ << k + 1 << ","
+                      << std::setprecision(10) << gnss_points_[k][0] << ","
+                      << std::setprecision(10) << gnss_points_[k][1] << ","
+                      << std::setprecision(4) << gnss_points_[k][2] << ","
+                      << std::setprecision(4) << gnss_points_[k][3] << "\n";
+        }
     }
 }
 
-
-void PathGenerate::findCenterHeading(int deltaAngle, int angleCount) {
-    if (angleCount % 2 == 1) { start_angle_ = (-deltaAngle * angleCount / 2) + deltaAngle / 2; }
-    else { start_angle_ = (int) (-angleCount * round(angleCount / 2)); }
+void PathGenerate::save_ugcs() {
+    if (firstTime) {
+        saved_wp_ << "WP,Latitude,Longitude,AltitudeAGL,UavYaw,Speed,WaitTime,Picture" << std::endl;
+        firstTime = false;
+    }
+    if (saved_wp_.is_open()) {
+        for (int k = 0; k < (int) gnss_points_.size(); k++) {
+            saved_wp_ << k + 1 << ","
+                      << std::setprecision(10) << gnss_points_[k][0] << ","
+                      << std::setprecision(10) << gnss_points_[k][1] << ","
+                      << std::setprecision(4) << gnss_points_[k][2] << ","
+                      << std::setprecision(4) << gnss_points_[k][3] << ","
+                      << 0.1 << 2 << "TRUE" << "\n";
+        }
+    }
 }
 
 void PathGenerate::createInspectionPoints(int csv_type) {
+    setCartesianPoints();
+    setGNSSpoints();
     openFile();
-    findCenterHeading(deltaAngle_, angleCount_);
-    int count_wp = 1;
-    float initial = csv_type == 4 ? xyz[2] : alt0_;
-
-    float vertical; // Set if will move drone down or up INITIALLY DOWN.
-    for (int i = 0; i < angleCount_; i++) {
-        if (i % 2 == 1) { vertical = 1; } else { vertical = -1; }
-        for (int k = 0; k < altitudeCount_; k++) {
-            /// Set altitude of this waypoint
-            float altitude = initial - (float) k * vertical * deltaAltitude_;
-            /// Set Polar values
-            polar_array_[0] = dist_ + d_cyl_ / 2; // distance riser and drone
-            polar_array_[1] = start_angle_ + i * deltaAngle_; // angle of inspection r^angle (Polar)
-            inspectionAngle2Heading((float) polar_array_[1]);
-            polar_array_[1] -= +head0_ + 90; // Compense heading orientation and -90 to transform N to 0 deg
-            /// Convert Polar to Cartesian
-            polar2cart(polar_array_[0], polar_array_[1], dist_ + d_cyl_ / 2, -(head0_ + 90));
-            /// Introduce values to waypoint array to be printed
-            cart2gcs(altitude);
-            /// Export to CSV file
-            switch (csv_type) {
-                case 1:
-                    csv_save_UGCS(waypoint_, altitude);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on UgCS struct Simplified (Top and Bottom)" << std::endl; }
-                    break;
-                case 2:
-                    csv_save_DJI(waypoint_, count_wp);
-                    if (count_wp >= angleCount_ * altitudeCount_) { std::cout << "Saved on DJI struct" << std::endl; }
-                    break;
-                case 3:
-                    csv_save_XY_yaw(xy_array_, waypoint_[3], i);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on XY struct" << std::endl;
-                    }
-                    break;
-                case 4:
-                    csv_save_XYZ_yaw(xy_array_, altitude, waypoint_[3]);
-                    if (count_wp >= angleCount_ * altitudeCount_) {
-                        std::cout << "Saved on XYZ struct" << std::endl;
-                    }
-                    break;
-            }
-            if (k == altitudeCount_ - 1) {
-                initial = altitude;
-            } // set initial altitude value when finished de vertical movement.
-            count_wp += 1;
-        }
+    /// Export to CSV file
+    switch (csv_type) {
+        case 1:
+            PathGenerate::save_cartesian();
+            break;
+        case 2:
+            PathGenerate::save_delta_cartesian();
+            break;
+        case 3:
+            PathGenerate::save_gnss();
+            break;
+        case 4:
+            PathGenerate::save_ugcs();
     }
     closeFile();
 }

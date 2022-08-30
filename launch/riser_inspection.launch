@@ -1,15 +1,15 @@
 <launch>
-    <arg name="gps_topic" default="/dji_sdk/gps_position" />
-    <arg name="rtk_topic" default="/dji_sdk/rtk_position" />
-    <arg name="attitude_topic" default="/dji_sdk/attitude" />
-    <arg name="localPos_topic" default="/dji_sdk/local_position" />
+    <arg name="gps_topic" default="/dji_osdk_ros/gps_position" />
+    <arg name="rtk_topic" default="/dji_osdk_ros/rtk_position" />
+    <arg name="attitude_topic" default="/dji_osdk_ros/attitude" />
+    <arg name="localPos_topic" default="/dji_osdk_ros/local_position" />
     <arg name="root_directory" default="/home/vant3d/Documents" />
 
     <!-- RISER INSPECTION NODE -->
     <node pkg="riser_inspection" type="waypoint_mission_node" name="riser_inspection" output="screen">
-        <param name="gps_topic"         type="string"   value="/dji_sdk/gps_position" />
-        <param name="rtk_topic"         type="string"   value="/dji_sdk/rtk_position" />
-        <param name="attitude_topic"    type="string"   value="/dji_sdk/attitude" />
+        <param name="gps_topic"         type="string"   value="/dji_osdk_ros/gps_position" />
+        <param name="rtk_topic"         type="string"   value="/dji_osdk_ros/rtk_position" />
+        <param name="attitude_topic"    type="string"   value="/dji_osdk_ros/attitude" />
         <param name="root_directory"    type="string"   value="/media/vant3d-media"/>
         <param name="wait_time"         type="int"      value="6"/>     <!-- SECONDS-->
         <param name="riser_distance"    type="int"      value="5"/>     <!--METERS-->
