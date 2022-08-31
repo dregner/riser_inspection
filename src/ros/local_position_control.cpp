@@ -74,13 +74,14 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
                                                      req.yaw_thresh));
         } else {
             ROS_ERROR("Did not get Control Authority");
-            return (res.result = false);
+            res.result = false;
         }
     }
     catch (ros::Exception &e) {
         ROS_ERROR("ROS error %s", e.what());
-        return (res.result = false);
+        res.result = false;
     }
+    return res.result;
 }
 
 bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req,

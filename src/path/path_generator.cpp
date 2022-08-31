@@ -65,8 +65,8 @@ void PathGenerate::setCartesianPoints() {
     for (int i = 0; i < (int) h_xy_points_.size(); i++) {
         float dx, dy;
         if (i == 0) {
-            dx = - h_xy_points_[i][0];
-            dy = - h_xy_points_[i][1];
+            dx = -h_xy_points_[i][0];
+            dy = -h_xy_points_[i][1];
         } else {
             dx = h_xy_points_[i - 1][0] - h_xy_points_[i][0];
             dy = h_xy_points_[i - 1][1] - h_xy_points_[i][1];
@@ -75,14 +75,13 @@ void PathGenerate::setCartesianPoints() {
             int vertical;
             float z;
             i % 2 == 1 ? vertical = 1 : vertical = -1;
-            if(j == 0) {
+            if (j == 0) {
                 delta_cartesian_points_.push_back({dx, dy, 0, polar_points_[i][1]});
-            }else{
+            } else {
                 delta_cartesian_points_.push_back({0, 0, (float) vertical * delta_altitude_, polar_points_[i][1]});
             }
-            cartesian_points_.push_back(
-                    {h_xy_points_[i][0], h_xy_points_[i][1], abs_alt + (float) j * vertical * delta_altitude_,
-                     polar_points_[i][1]});
+            cartesian_points_.push_back({h_xy_points_[i][0], h_xy_points_[i][1],
+                                         abs_alt + (float) j * vertical * delta_altitude_, polar_points_[i][1]});
             abs_alt = abs_alt + (float) j * vertical * delta_altitude_;
         }
     }
