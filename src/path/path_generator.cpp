@@ -75,8 +75,11 @@ void PathGenerate::setCartesianPoints() {
             int vertical;
             float z;
             i % 2 == 1 ? vertical = 1 : vertical = -1;
-            j == 0 ? z = 0 : z = (float) vertical * delta_altitude_;
-            delta_cartesian_points_.push_back({dx, dy, z, polar_points_[i][1]});
+            if(j == 0) {
+                delta_cartesian_points_.push_back({dx, dy, 0, polar_points_[i][1]});
+            }else{
+                delta_cartesian_points_.push_back({0, 0, (float) vertical * delta_altitude_, polar_points_[i][1]});
+            }
             cartesian_points_.push_back(
                     {h_xy_points_[i][0], h_xy_points_[i][1], abs_alt + (float) j * vertical * delta_altitude_,
                      polar_points_[i][1]});
