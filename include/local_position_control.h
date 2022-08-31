@@ -75,7 +75,7 @@ private:
     /// Internal references
     bool doing_mission = false;
     int wp_n = 1;
-    float yaw_error{}, h_error{};
+    float yaw_error{}, pos_error{};
 
     bool use_gimbal = false;
     bool use_stereo = false;

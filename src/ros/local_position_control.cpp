@@ -31,7 +31,8 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
 
     //! Service topics
-    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("/obtain_release_control_authority");
+    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>(
+            "/obtain_release_control_authority");
     set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
@@ -87,10 +88,9 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
 
     doing_mission = true;
     use_gimbal = req.use_gimbal;
-    h_error = req.position_thresh;
+    pos_error = req.position_thresh;
     yaw_error = req.yaw_thresh;
     use_stereo = req.use_stereo;
-    wp_n = 1;
     if (LocalController::set_local_position()) {
         if (use_stereo) {
             stereo_vant::PointGray stereoAction;
@@ -99,7 +99,8 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
             stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
             stereoAction.request.file_name = "stereo_vant";
             sv3d_client.call(stereoAction);
-        } else {
+        }
+        if (use_gimbal) {
             LocalController::set_gimbal_angles(0, 0, 0);
         }
         generate_WP(2);
@@ -172,7 +173,8 @@ bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, fl
 
     if (control_task_point.response.result) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+                 current_local_pos.point.x, current_local_pos.point.y, rpa_height,
+                 stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
         LocalController::obtain_control(false);
         return control_task_point.response.result;
     } else { return control_task_point.response.result; }
@@ -186,23 +188,26 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
     control_task_mission.request.joystickCommand.y = waypoint_list[waypoint_n][2];
     control_task_mission.request.joystickCommand.z = waypoint_list[waypoint_n][3];
     control_task_mission.request.joystickCommand.yaw = waypoint_list[waypoint_n][4];
-    control_task_mission.request.posThresholdInM = h_error;
+    control_task_mission.request.posThresholdInM = pos_error;
     control_task_mission.request.yawThresholdInDeg = yaw_error;
 
     task_control_client.call(control_task_mission);
 
     if (control_task_mission.response.result) {
-        ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", wp_n,
-                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
-        if (waypoint_n <= (int) waypoint_list.size()) {
-            LocalController::acquire_photo(use_stereo, use_gimbal) ? ros::Duration(4).sleep() : ros::Duration(
-                    1).sleep();
+        ROS_INFO("WP %i - %f m @ %f deg target complete", wp_n + 1, rpa_height,
+                 stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+
+        if (waypoint_n < (int) waypoint_list.size()) {
+            LocalController::acquire_photo(use_stereo, use_gimbal) ?
+            ros::Duration(4).sleep() : ros::Duration(1).sleep();
             wp_n++;
         } else {
-            ROS_INFO("MISSION FINISHED");
-            ROS_INFO("BACK INITIAL");
-            local_position_ctrl(current_local_pos.point.x, current_local_pos.point.y, current_local_pos.point.z,current_atti_euler.Yaw(), 0.5, 1);
             doing_mission = false;
+            ROS_WARN("BACK TO INITIAL POSITION");
+            if (local_position_ctrl(-current_local_pos.point.x, -current_local_pos.point.y, -current_local_pos.point.z,
+                                    stupid_offset(RAD2DEG(current_atti_euler.Yaw())), pos_error, yaw_error)) {
+                ROS_INFO("MISSION FINISHED");
+            } else { ROS_ERROR("UNKOWN ERROR"); }
         }
     }
 }
@@ -239,7 +244,8 @@ bool LocalController::generate_WP(int csv_type) {
     /** Initial setting and parameters to generate trajectory*/
     pathGenerator.reset(); // clear pathGen
     waypoint_list.clear(); // clear waypoint list
-    wp_n = 0;
+    wp_n = 0; //! vector initiate at 0 and goes to (h_n*h_v-1)
+
     int riser_distance, riser_diameter, h_points, v_points, delta_h, delta_v;
     std::string root_directory;
     nh_.param("/riser_inspection/riser_distance", riser_distance, 10);
@@ -286,20 +292,20 @@ bool LocalController::generate_WP(int csv_type) {
     }
 }
 
-float LocalController::stupid_offset(float yaw){
-    if(0 <= yaw <= 90){
-        yaw = -yaw +90;
+float LocalController::stupid_offset(float yaw) {
+    if (0 <= yaw <= 90) {
+        yaw = -yaw + 90;
         return yaw;
     }
-    if(90 < yaw <= 180){
-        yaw = -yaw +180;
+    if (90 < yaw <= 180) {
+        yaw = -yaw + 180;
         return yaw;
     }
-    if(-90 < yaw < 0){
-        yaw = yaw -180;
+    if (-90 < yaw < 0) {
+        yaw = yaw - 180;
         return yaw;
     }
-    if(-180 < yaw < -90){
+    if (-180 < yaw < -90) {
         yaw = yaw - 90;
         return yaw;
     }

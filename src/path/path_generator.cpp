@@ -65,8 +65,8 @@ void PathGenerate::setCartesianPoints() {
     for (int i = 0; i < (int) h_xy_points_.size(); i++) {
         float dx, dy;
         if (i == 0) {
-            dx = h_xy_points_[i][0];
-            dy = h_xy_points_[i][1];
+            dx = - h_xy_points_[i][0];
+            dy = - h_xy_points_[i][1];
         } else {
             dx = h_xy_points_[i - 1][0] - h_xy_points_[i][0];
             dy = h_xy_points_[i - 1][1] - h_xy_points_[i][1];
