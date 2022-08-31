@@ -13,45 +13,6 @@
 #include <math.h>
 #define RAD2DEG(RAD) ((RAD) * 180 / M_PI)
 
-#include <iostream>
-#include <math.h>
-using namespace std;
-
-struct float4{
-    float x;
-    float y;
-    float z;
-    float w;
-};
-float4 make_float4(float x, float y, float z, float w){
-    float4 quat = {x,y,z,w};
-    return quat;
-}
-float dot(float4 a)
-{
-    return (((a.x * a.x) + (a.y * a.y)) + (a.z * a.z)) + (a.w * a.w);
-}
-float4 normalize(float4 q)
-{
-    float num = dot(q);
-    float inv = 1.0f / (sqrtf(num));
-    return make_float4(q.x * inv, q.y * inv, q.z * inv, q.w * inv);
-}
-float4 create_from_axis_angle(const float &xx, const float &yy, const float &zz, const float &a)
-{
-    // Here we calculate the sin( theta / 2) once for optimization
-    float factor = sinf( a / 2.0f );
-
-    float4 quat;
-    // Calculate the x, y and z of the quaternion
-    quat.x = xx * factor;
-    quat.y = yy * factor;
-    quat.z = zz * factor;
-
-    // Calcualte the w value by cos( theta / 2 )
-    quat.w = cosf( a / 2.0f );
-    return normalize(quat);
-}
 
 DJI::OSDK::Telemetry::Vector3f quaternionToEulerAngle(const geometry_msgs::QuaternionStamped::ConstPtr &quat)
 {
@@ -74,7 +35,7 @@ float stupid_offset(float yaw){
         yaw = -yaw +90;
         return yaw;
     }
-    if(90 < yaw < 180){
+    if(90 < yaw <= 180){
         yaw = -yaw +180;
         return yaw;
     }

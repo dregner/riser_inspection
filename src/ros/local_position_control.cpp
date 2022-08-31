@@ -31,13 +31,13 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
 
     //! Service topics
-    obtain_control_sdk = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("obtain_release_control_authority");
-    set_local_pos_reference = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
+    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("/obtain_release_control_authority");
+    set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
     //! Camera services
-    camera_action_service = nh.serviceClient<dji_osdk_ros::CameraAction>("camera_action");
-    stereo_v3d_service = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
+    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraAction>("camera_action");
+    sv3d_client = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
     local_position_service = nh.advertiseService("/local_position/set_position",
@@ -52,7 +52,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 bool LocalController::obtain_control(bool ask) {
     dji_osdk_ros::ObtainControlAuthority authority;
     authority.request.enable_obtain = ask;
-    obtain_control_sdk.call(authority);
+    obtain_crl_authority_client.call(authority);
 
     if (!authority.response.result) {
         ROS_ERROR("Can't get control authority");
@@ -98,7 +98,7 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
             stereoAction.request.reset_counter = true;
             stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
             stereoAction.request.file_name = "stereo_vant";
-            stereo_v3d_service.call(stereoAction);
+            sv3d_client.call(stereoAction);
         } else {
             LocalController::set_gimbal_angles(0, 0, 0);
         }
@@ -139,7 +139,7 @@ void LocalController::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
 
 bool LocalController::set_local_position() {
     dji_osdk_ros::SetLocalPosRef localPosReferenceSetter;
-    set_local_pos_reference.call(localPosReferenceSetter);
+    set_local_ref_client.call(localPosReferenceSetter);
     ROS_INFO("SET LOCAL POSITION TO [0,0,0]");
     return (bool) localPosReferenceSetter.response.result;
 }
@@ -172,7 +172,7 @@ bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, fl
 
     if (control_task_point.response.result) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
-                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
+                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
         LocalController::obtain_control(false);
         return control_task_point.response.result;
     } else { return control_task_point.response.result; }
@@ -193,13 +193,15 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
 
     if (control_task_mission.response.result) {
         ROS_INFO("WP %i - (%f, %f, %f) m @ %f deg target complete", wp_n,
-                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, RAD2DEG(current_atti_euler.Yaw()));
-        if (waypoint_n < (int) waypoint_list.size()) {
+                 current_local_pos.point.x, current_local_pos.point.y, rpa_height, stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+        if (waypoint_n <= (int) waypoint_list.size()) {
             LocalController::acquire_photo(use_stereo, use_gimbal) ? ros::Duration(4).sleep() : ros::Duration(
                     1).sleep();
             wp_n++;
         } else {
-            LocalController::obtain_control(false);
+            ROS_INFO("MISSION FINISHED");
+            ROS_INFO("BACK INITIAL");
+            local_position_ctrl(current_local_pos.point.x, current_local_pos.point.y, current_local_pos.point.z,current_atti_euler.Yaw(), 0.5, 1);
             doing_mission = false;
         }
     }
@@ -213,7 +215,7 @@ bool LocalController::acquire_photo(bool stereo, bool gimbal) {
         stereoAction.request.reset_counter = false;
         stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
         stereoAction.request.file_name = "stereo_vant";
-        stereo_v3d_service.call(stereoAction);
+        sv3d_client.call(stereoAction);
         if (stereoAction.response.result) {
             ROS_INFO("Stereo image %i - %hhu", camera_count, stereoAction.response.result);
             camera_count++;
@@ -221,7 +223,7 @@ bool LocalController::acquire_photo(bool stereo, bool gimbal) {
     }
     if (gimbal) {
         cameraAction.request.camera_action = 0;
-        camera_action_service.call(cameraAction);
+        camera_action_client.call(cameraAction);
         if (cameraAction.response.result) {
             ROS_INFO("Picture %i - %hhu", camera_count, cameraAction.response.result);
             camera_count++;
@@ -254,7 +256,7 @@ bool LocalController::generate_WP(int csv_type) {
                                      (float) delta_v);
     /** Define start positions to create waypoints */
     pathGenerator.setInitCoord_XY(current_local_pos.point.x, current_local_pos.point.y, rpa_height,
-                                  (int) RAD2DEG(current_atti_euler.Yaw()));
+                                  (int) stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
     try {
         pathGenerator.createInspectionPoints(csv_type); // type 4 refers to XYZ YAW waypoints
         ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
@@ -281,6 +283,25 @@ bool LocalController::generate_WP(int csv_type) {
     } catch (ros::Exception &e) {
         ROS_WARN("ROS error %s", e.what());
         return false;
+    }
+}
+
+float LocalController::stupid_offset(float yaw){
+    if(0 <= yaw <= 90){
+        yaw = -yaw +90;
+        return yaw;
+    }
+    if(90 < yaw <= 180){
+        yaw = -yaw +180;
+        return yaw;
+    }
+    if(-90 < yaw < 0){
+        yaw = yaw -180;
+        return yaw;
+    }
+    if(-180 < yaw < -90){
+        yaw = yaw - 90;
+        return yaw;
     }
 }
 

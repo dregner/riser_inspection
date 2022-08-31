@@ -53,14 +53,14 @@ private:
     ros::ServiceServer start_mission_service;
 
     /// Stereo VANT3D
-    ros::ServiceClient stereo_v3d_service;
+    ros::ServiceClient sv3d_client;
 
     /// DJI Services
-    ros::ServiceClient obtain_control_sdk;
+    ros::ServiceClient obtain_crl_authority_client;
     ros::ServiceClient flight_task_control_service;
     ros::ServiceClient task_control_client;
-    ros::ServiceClient camera_action_service;
-    ros::ServiceClient set_local_pos_reference;
+    ros::ServiceClient camera_action_client;
+    ros::ServiceClient set_local_ref_client;
     ros::ServiceClient gimbal_control_client;
 
     /// Messages from GPS, RTK and Attitude
@@ -122,6 +122,8 @@ public:
     void local_position_ctrl_mission(int waypoint_n);
 
     bool generate_WP(int csv_type);
+
+    float stupid_offset(float yaw);
 
 };
 
