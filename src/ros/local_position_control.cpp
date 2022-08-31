@@ -33,7 +33,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     //! Service topics
     obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>(
             "/obtain_release_control_authority");
-    set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_ref");
+    set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_reference");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
     //! Camera services
@@ -106,8 +106,9 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
         generate_WP(2);
         if (req.autonomous_mission) {
             return (res.result = LocalController::obtain_control(true));
-        } else { return (res.result = true); }
-    } else { return (res.result = false); }
+        } else { res.result = true; }
+    } else { res.result = false; }
+    return res.result;
 }
 
 
