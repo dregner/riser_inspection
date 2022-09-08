@@ -10,7 +10,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <dji_telemetry.hpp>
-#include <math.h>
+#include <tf/tf.h>
 #define RAD2DEG(RAD) ((RAD) * 180 / M_PI)
 
 
@@ -48,23 +48,29 @@ float stupid_offset(float yaw){
         return yaw;
     }
 }
+
 void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
               const geometry_msgs::QuaternionStamped::ConstPtr &atti_msg) {
 
-    float roll, pitch, yaw;
-    yaw = RAD2DEG(quaternionToEulerAngle(atti_msg).z);
-    roll = RAD2DEG(quaternionToEulerAngle(atti_msg).y);
-    pitch = RAD2DEG(quaternionToEulerAngle(atti_msg).x);
-    ignition::math::Quaterniond rpy;
-    float yaw_c = stupid_offset(yaw);
+    ignition::math::Quaterniond rpy, rpy_total;
+    rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
+
+    float yaw_c = stupid_offset(RAD2DEG(rpy.Yaw()));
     if (yaw_c < -180) { yaw_c = yaw_c + 360; }
     if (yaw_c > 180) { yaw_c = yaw_c - 360; }
-    rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
+
+    tf::Matrix3x3 R_ATTI;
+    tf::Quaternion q_total;
+    R_ATTI.setRotation(tf::Quaternion(atti_msg->quaternion.x,atti_msg->quaternion.y,atti_msg->quaternion.z, atti_msg->quaternion.w));
+    tf::Matrix3x3 ROT = {0,-1,0,-1,0,0,0,0,-1};
+    tf::Matrix3x3 R_total = R_ATTI * ROT;
+    R_total.getRotation(q_total);
+    rpy_total.Set(q_total.getW(), q_total.getX(), q_total.getY(), q_total.getZ());
 
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << RAD2DEG(rpy.Yaw()) << std::endl;
     std::cout << "DJI Function" << std::endl;
-    std::cout << "R: " << roll << "\tP: " << pitch << "\tY: " << yaw << std::endl;
-    std::cout << "OFFSET YAW: " << yaw_c <<std::endl;
+    std::cout << "R: " << RAD2DEG(rpy_total.Roll()) << "\tP: " << RAD2DEG(rpy_total.Pitch()) << "\tY: " << RAD2DEG(rpy_total.Yaw()) << std::endl;
+    std::cout << "OFFSET TOSCO YAW: " << yaw_c <<std::endl;
 //    std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
     std::cout << "GPS" << std::endl;
     std::cout << "LAT: " << gps_msg->latitude << "\tLON: " << gps_msg->longitude << "\tALT: " << gps_msg->altitude << std::endl;
