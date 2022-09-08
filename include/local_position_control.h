@@ -17,6 +17,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <ignition/math/Pose3.hh>
 #include <std_msgs/Float32.h>
+#include <tf/tf.h>
 
 // Opencv includes
 #include <cv_bridge/cv_bridge.h>
@@ -69,6 +70,8 @@ private:
     geometry_msgs::PointStamped current_local_pos;
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
+    tf::Matrix3x3 atti_matrix;
+    tf::Quaternion q_atti_matrix;
 
     float rpa_height = 0;
 
@@ -122,9 +125,6 @@ public:
     void local_position_ctrl_mission(int waypoint_n);
 
     bool generate_WP(int csv_type);
-
-    float stupid_offset(float yaw);
-
 };
 
 #ifndef RISER_INSPECTION_LOCAL_POSITION_CONTROL_H

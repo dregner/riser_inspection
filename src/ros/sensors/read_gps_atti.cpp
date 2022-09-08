@@ -68,9 +68,8 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
     rpy_total.Set(q_total.getW(), q_total.getX(), q_total.getY(), q_total.getZ());
 
     std::cout << "R: " << RAD2DEG(rpy.Roll()) << "\tP: " << RAD2DEG(rpy.Pitch()) << "\tY: " << RAD2DEG(rpy.Yaw()) << std::endl;
-    std::cout << "DJI Function" << std::endl;
-    std::cout << "R: " << RAD2DEG(rpy_total.Roll()) << "\tP: " << RAD2DEG(rpy_total.Pitch()) << "\tY: " << RAD2DEG(rpy_total.Yaw()) << std::endl;
-    std::cout << "OFFSET TOSCO YAW: " << yaw_c <<std::endl;
+    std::cout << "AFTER rotx(180)*rotz(90)" << std::endl;
+    std::cout << "R: " << RAD2DEG(rpy_total.Pitch()) << "\tP: " << RAD2DEG(rpy_total.Roll()) << "\tY: " << -RAD2DEG(rpy_total.Yaw()) << std::endl;
 //    std::cout << "R: " << rpy.Roll() << "\tP: " <<rpy.Pitch() << "\tY: " << rpy.Yaw()<< std::endl;
     std::cout << "GPS" << std::endl;
     std::cout << "LAT: " << gps_msg->latitude << "\tLON: " << gps_msg->longitude << "\tALT: " << gps_msg->altitude << std::endl;

@@ -120,8 +120,12 @@ void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
 
 void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
     current_atti = *msg;
-    current_atti_euler.Set(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
-                           current_atti.quaternion.z);
+    atti_matrix.setRotation(tf::Quaternion(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
+                                      current_atti.quaternion.z));
+    tf::Matrix3x3 ROT = {0,-1,0,-1,0,0,0,0,-1};
+    tf::Matrix3x3 R_total = atti_matrix * ROT;
+    atti_matrix.getRotation(q_atti_matrix);
+    current_atti_euler.Set(q_atti_matrix.getW(), q_atti_matrix.getX(), q_atti_matrix.getY(), q_atti_matrix.getZ());
 
 }
 
@@ -176,7 +180,7 @@ bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, fl
     if (control_task_point.response.result) {
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height,
-                 stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+                 -RAD2DEG(current_atti_euler.Yaw()));
         LocalController::obtain_control(false);
         return control_task_point.response.result;
     } else { return control_task_point.response.result; }
@@ -197,7 +201,7 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
 
     if (control_task_mission.response.result) {
         ROS_INFO("WP %i - %f m @ %f deg target complete", wp_n + 1, rpa_height,
-                 stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+                 -RAD2DEG(current_atti_euler.Yaw()));
 
         if (waypoint_n < (int) waypoint_list.size()) {
             LocalController::acquire_photo(use_stereo, use_gimbal) ?
@@ -207,7 +211,7 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
             doing_mission = false;
             ROS_WARN("BACK TO INITIAL POSITION");
             if (local_position_ctrl(-current_local_pos.point.x, -current_local_pos.point.y, -current_local_pos.point.z,
-                                    stupid_offset(RAD2DEG(current_atti_euler.Yaw())), pos_error, yaw_error)) {
+                                    -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
                 ROS_INFO("MISSION FINISHED");
             } else { ROS_ERROR("UNKOWN ERROR"); }
         }
@@ -264,7 +268,7 @@ bool LocalController::generate_WP(int csv_type) {
                                      (float) delta_v);
     /** Define start positions to create waypoints */
     pathGenerator.setInitCoord_XY(current_local_pos.point.x, current_local_pos.point.y, rpa_height,
-                                  (int) stupid_offset(RAD2DEG(current_atti_euler.Yaw())));
+                                  (int) -RAD2DEG(current_atti_euler.Yaw()));
     try {
         pathGenerator.createInspectionPoints(csv_type); // type 4 refers to XYZ YAW waypoints
         ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
@@ -291,25 +295,6 @@ bool LocalController::generate_WP(int csv_type) {
     } catch (ros::Exception &e) {
         ROS_WARN("ROS error %s", e.what());
         return false;
-    }
-}
-
-float LocalController::stupid_offset(float yaw) {
-    if (0 <= yaw <= 90) {
-        yaw = -yaw + 90;
-        return yaw;
-    }
-    if (90 < yaw <= 180) {
-        yaw = -yaw + 180;
-        return yaw;
-    }
-    if (-90 < yaw < 0) {
-        yaw = yaw - 180;
-        return yaw;
-    }
-    if (-180 < yaw < -90) {
-        yaw = yaw - 90;
-        return yaw;
     }
 }
 
