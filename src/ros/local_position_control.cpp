@@ -123,7 +123,7 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
     atti_matrix.setRotation(tf::Quaternion(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
                                       current_atti.quaternion.z));
     tf::Matrix3x3 ROT = {0,-1,0,-1,0,0,0,0,-1};
-    tf::Matrix3x3 R_total = atti_matrix * ROT;
+    atti_matrix = atti_matrix * ROT;
     atti_matrix.getRotation(q_atti_matrix);
     current_atti_euler.Set(q_atti_matrix.getW(), q_atti_matrix.getX(), q_atti_matrix.getY(), q_atti_matrix.getZ());
 

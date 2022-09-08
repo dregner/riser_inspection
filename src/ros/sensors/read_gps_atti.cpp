@@ -30,34 +30,12 @@ DJI::OSDK::Telemetry::Vector3f quaternionToEulerAngle(const geometry_msgs::Quate
     eulerAngle.z = atan2(t1, t0);
     return eulerAngle;
 }
-float stupid_offset(float yaw){
-    if(0 <= yaw <= 90){
-        yaw = -yaw +90;
-        return yaw;
-    }
-    if(90 < yaw <= 180){
-        yaw = -yaw +180;
-        return yaw;
-    }
-    if(-90 < yaw < 0){
-        yaw = yaw -180;
-        return yaw;
-    }
-    if(-180 < yaw < -90){
-        yaw = yaw - 90;
-        return yaw;
-    }
-}
 
 void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
               const geometry_msgs::QuaternionStamped::ConstPtr &atti_msg) {
 
     ignition::math::Quaterniond rpy, rpy_total;
     rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
-
-    float yaw_c = stupid_offset(RAD2DEG(rpy.Yaw()));
-    if (yaw_c < -180) { yaw_c = yaw_c + 360; }
-    if (yaw_c > 180) { yaw_c = yaw_c - 360; }
 
     tf::Matrix3x3 R_ATTI;
     tf::Quaternion q_total;
