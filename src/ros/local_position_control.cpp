@@ -90,8 +90,6 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
 
     doing_mission = true;
     use_gimbal = req.use_gimbal;
-    pos_error = req.position_thresh;
-    yaw_error = req.yaw_thresh;
     use_stereo = req.use_stereo;
     if (LocalController::set_local_position()) {
         if (use_stereo) {
