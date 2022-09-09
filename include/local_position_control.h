@@ -78,8 +78,7 @@ private:
     /// Internal references
     bool doing_mission = false;
     int wp_n = 1;
-    float yaw_error{}, pos_error{};
-
+    double yaw_error, pos_error;
     bool use_gimbal = false;
     bool use_stereo = false;
     int stereo_voo = 0;
@@ -122,7 +121,7 @@ public:
 
     bool local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh, float yaw_thresh);
 
-    void local_position_ctrl_mission(int waypoint_n);
+    void local_position_ctrl_mission();
 
     bool generate_WP(int csv_type);
 };

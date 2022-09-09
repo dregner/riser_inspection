@@ -70,8 +70,9 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
         if (LocalController::obtain_control(true)) {
             ROS_INFO("Received points x: %f, y: %f, z: %f, yaw: %f", req.x, req.y, req.z, req.yaw);
             ROS_INFO("Threshold: %f m - %f deg", req.position_thresh, req.yaw_thresh);
-            return (res.result = local_position_ctrl(req.x, req.y, req.z, req.yaw, req.position_thresh,
-                                                     req.yaw_thresh));
+            res.result = local_position_ctrl(req.x, req.y, req.z, req.yaw, req.position_thresh,
+                                             req.yaw_thresh);
+            return res.result;
         } else {
             ROS_ERROR("Did not get Control Authority");
             res.result = false;
@@ -98,16 +99,14 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
             stereo_voo++;
             stereoAction.request.reset_counter = true;
             stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
-            stereoAction.request.file_name = "stereo_vant";
+            stereoAction.request.file_name = "sv3d";
             sv3d_client.call(stereoAction);
         }
         if (use_gimbal) {
             LocalController::set_gimbal_angles(0, 0, 0);
         }
         generate_WP(2);
-        if (req.autonomous_mission) {
-            return (res.result = LocalController::obtain_control(true));
-        } else { res.result = true; }
+        res.result = LocalController::obtain_control(true);
     } else { res.result = false; }
     return res.result;
 }
@@ -120,10 +119,10 @@ void LocalController::height_callback(const std_msgs::Float32::ConstPtr &msg) {
 
 void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg) {
     current_atti = *msg;
-    atti_matrix.setRotation(tf::Quaternion(current_atti.quaternion.w, current_atti.quaternion.x, current_atti.quaternion.y,
-                                      current_atti.quaternion.z));
-    tf::Matrix3x3 ROT = {0,-1,0,-1,0,0,0,0,-1};
-    atti_matrix = atti_matrix * ROT;
+    atti_matrix.setRotation(tf::Quaternion(current_atti.quaternion.x, current_atti.quaternion.y,
+                                           current_atti.quaternion.z, current_atti.quaternion.w));
+    tf::Matrix3x3 ROT = {0, -1, 0, -1, 0, 0, 0, 0, -1};
+    atti_matrix *= ROT;
     atti_matrix.getRotation(q_atti_matrix);
     current_atti_euler.Set(q_atti_matrix.getW(), q_atti_matrix.getX(), q_atti_matrix.getY(), q_atti_matrix.getZ());
 
@@ -132,7 +131,7 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
     current_local_pos = *msg;
     if (doing_mission) {
-        local_position_ctrl_mission(wp_n);
+        local_position_ctrl_mission();
     }
 }
 
@@ -187,13 +186,13 @@ bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, fl
 }
 
 void
-LocalController::local_position_ctrl_mission(int waypoint_n) {
+LocalController::local_position_ctrl_mission() {
     dji_osdk_ros::FlightTaskControl control_task_mission;
     control_task_mission.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
-    control_task_mission.request.joystickCommand.x = waypoint_list[waypoint_n][1];
-    control_task_mission.request.joystickCommand.y = waypoint_list[waypoint_n][2];
-    control_task_mission.request.joystickCommand.z = waypoint_list[waypoint_n][3];
-    control_task_mission.request.joystickCommand.yaw = waypoint_list[waypoint_n][4];
+    control_task_mission.request.joystickCommand.x = waypoint_list[wp_n][1];
+    control_task_mission.request.joystickCommand.y = waypoint_list[wp_n][2];
+    control_task_mission.request.joystickCommand.z = waypoint_list[wp_n][3];
+    control_task_mission.request.joystickCommand.yaw = waypoint_list[wp_n][4];
     control_task_mission.request.posThresholdInM = pos_error;
     control_task_mission.request.yawThresholdInDeg = yaw_error;
 
@@ -203,15 +202,18 @@ LocalController::local_position_ctrl_mission(int waypoint_n) {
         ROS_INFO("WP %i - %f m @ %f deg target complete", wp_n + 1, rpa_height,
                  -RAD2DEG(current_atti_euler.Yaw()));
 
-        if (waypoint_n < (int) waypoint_list.size()) {
-            LocalController::acquire_photo(use_stereo, use_gimbal) ?
-            ros::Duration(4).sleep() : ros::Duration(1).sleep();
+        if (wp_n < (int) waypoint_list.size()) {
+            if (use_gimbal || use_stereo) {
+                LocalController::acquire_photo(use_stereo, use_gimbal);
+                ros::Duration(4).sleep();
+            }
             wp_n++;
         } else {
             doing_mission = false;
             ROS_WARN("BACK TO INITIAL POSITION");
-            if (local_position_ctrl(-current_local_pos.point.x, -current_local_pos.point.y, -current_local_pos.point.z,
-                                    -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
+            if (local_position_ctrl((float) -current_local_pos.point.x, (float) -current_local_pos.point.y,
+                                    (float) -current_local_pos.point.z,
+                                    (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
                 ROS_INFO("MISSION FINISHED");
             } else { ROS_ERROR("UNKOWN ERROR"); }
         }
@@ -260,6 +262,8 @@ bool LocalController::generate_WP(int csv_type) {
     nh_.param("/riser_inspection/vertical_points", v_points, 2);
     nh_.param("/riser_inspection/delta_H", delta_h, 15);
     nh_.param("/riser_inspection/delta_V", delta_v, 300);
+    nh_.param("/riser_inspection/pos_thresh", pos_error, 0.1);
+    nh_.param("/riser_inspection/angle_thresh", yaw_error, 1.0);
     nh_.param("/riser_inspection/root_directory", root_directory, std::string("/home/vant3d/Documents"));
 
     /** Setting intial parameters to create waypoints */

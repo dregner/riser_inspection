@@ -20,5 +20,7 @@
         <param name="vertical_points"   type="int"      value="5"/>     <!--Nº of vertical stops at each horizontal point-->
         <param name="delta_H"           type="int"      value="15"/>    <!--DEGREES-->
         <param name="delta_V"           type="int"      value="-300"/>   <!--MILLIMETERS-->
+        <param name="pos_thresh"        type="double"   value="0.1"/>
+        <param name="angle_thresh"      type="double"   value="1"/>
     </node>
 </launch>
