@@ -35,7 +35,7 @@
 #include <dji_osdk_ros/FlightTaskControl.h>
 #include <dji_osdk_ros/ObtainControlAuthority.h>
 #include <dji_osdk_ros/SetLocalPosRef.h>
-#include <dji_osdk_ros/CameraAction.h>
+#include <dji_osdk_ros/CameraStartShootSinglePhoto.h>
 #include <dji_osdk_ros/common_type.h>
 #include <dji_osdk_ros/GimbalAction.h>
 #include<dji_osdk_ros/SetJoystickMode.h>
@@ -130,3 +130,4 @@ public:
 #define RISER_INSPECTION_LOCAL_POSITION_CONTROL_H
 
 #endif //RISER_INSPECTION_LOCAL_POSITION_CONTROL_H
+

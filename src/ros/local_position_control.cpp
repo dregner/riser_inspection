@@ -37,7 +37,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
     //! Camera services
-    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraAction>("camera_action");
+    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraStartShootSinglePhoto>("/camera_start_shoot_single_photo");
     sv3d_client = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
@@ -101,6 +101,7 @@ bool LocalController::start_mission_service_cb(riser_inspection::StartMission::R
             sv3d_client.call(stereoAction);
         }
         if (use_gimbal) {
+            ROS_INFO("SETTING GIMBAL");
             LocalController::set_gimbal_angles(0, 0, 0);
         }
         generate_WP(2);
@@ -201,27 +202,28 @@ LocalController::local_position_ctrl_mission() {
                  -RAD2DEG(current_atti_euler.Yaw()));
 
         if (wp_n < (int) waypoint_list.size()) {
-            if (use_gimbal || use_stereo) {
+            if (use_gimbal) {
+                ROS_INFO("TAKING PHOTO");
                 LocalController::acquire_photo(use_stereo, use_gimbal);
-                ros::Duration(4).sleep();
+                //ros::Duration(4).sleep();
             }
             wp_n++;
         } else {
-            doing_mission = false;
             ROS_WARN("BACK TO INITIAL POSITION");
             if (local_position_ctrl((float) -current_local_pos.point.x, (float) -current_local_pos.point.y,
                                     (float) -current_local_pos.point.z,
                                     (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
                 ROS_INFO("MISSION FINISHED");
+                doing_mission = false;
             } else { ROS_ERROR("UNKOWN ERROR"); }
         }
     }
 }
 
 bool LocalController::acquire_photo(bool stereo, bool gimbal) {
-    dji_osdk_ros::CameraAction cameraAction;
+    dji_osdk_ros::CameraStartShootSinglePhoto cameraAction;
     stereo_vant::PointGray stereoAction;
-
+	ROS_INFO("Got on function");
     if (stereo) {
         stereoAction.request.reset_counter = false;
         stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
@@ -232,16 +234,14 @@ bool LocalController::acquire_photo(bool stereo, bool gimbal) {
             camera_count++;
         }
     }
-    if (gimbal) {
-        cameraAction.request.camera_action = 0;
+    if (use_gimbal) {
+        cameraAction.request.payload_index = 0;
         camera_action_client.call(cameraAction);
         if (cameraAction.response.result) {
             ROS_INFO("Picture %i - %hhu", camera_count, cameraAction.response.result);
             camera_count++;
+            return true;
         }
-    }
-    if (cameraAction.response.result || stereoAction.response.result) {
-        return true;
     } else { return false; }
 
 }
@@ -299,4 +299,5 @@ bool LocalController::generate_WP(int csv_type) {
         return false;
     }
 }
+
 
