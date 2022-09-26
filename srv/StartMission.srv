@@ -1,7 +1,3 @@
-#constant for control_type
-uint8 SEMI_MISSION = 1
-uint8 FULL_MISSION = 2
-
 #request
 bool use_gimbal
 bool use_stereo
