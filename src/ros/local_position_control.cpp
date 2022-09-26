@@ -21,8 +21,7 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
     nh.param("/riser_inspection/height_takeoff", height_topic, std::string("/dji_osdk_sdk/height_above_takeoff"));
     nh.param("/riser_inspection/local_position_topic", local_pos_topic, std::string("/dji_osdk_sdk/local_position"));
     //! Subscribe topics
-//    gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
-//    rtk_sub = nh.subscribe<sensor_msgs::NavSatFix>(rtk_topic, 1, &LocalController::rtk_callback, this);
+    gps_sub = nh.subscribe<sensor_msgs::NavSatFix>(gps_topic, 1, &LocalController::gps_callback, this);
     attitude_sub = nh.subscribe<geometry_msgs::QuaternionStamped>(attitude_topic, 1,
                                                                   &LocalController::attitude_callback, this);
     local_pos_sub = nh.subscribe<geometry_msgs::PointStamped>(local_pos_topic, 1,
@@ -31,13 +30,13 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
 
     //! Service topics
-    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>(
-            "/obtain_release_control_authority");
+    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("/obtain_release_control_authority");
     set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_reference");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
+
     //! Camera services
-    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraStartShootSinglePhoto>("/camera_start_shoot_single_photo");
+    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraStartShootSinglePhoto>("camera_start_shoot_single_photo");
     sv3d_client = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
     ROS_INFO("Subscribed Complet");
 
@@ -129,17 +128,34 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
 
 void LocalController::local_position_callback(const geometry_msgs::PointStamped::ConstPtr &msg) {
     current_local_pos = *msg;
-    if (doing_mission) {
-        local_position_ctrl_mission();
-    }
 }
 
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
-}
-
-void LocalController::rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
-    current_rtk = *msg;
+    if (doing_mission) {
+        if (wp_n < waypoint_list.size()) {
+            if (local_position_ctrl_mission()) {
+                if (use_gimbal) {
+                    ROS_INFO("TAKING PHOTO");
+                    LocalController::gimbal_photo();
+                    //ros::Duration(4).sleep();
+                }
+                if (use_stereo) {
+                    ROS_INFO("SV3D IMG");
+                    LocalController::stereo_photo();
+                }
+                wp_n++;
+            }
+        } else {
+            ROS_WARN("BACK TO INITIAL POSITION");
+            if (local_position_ctrl((float) -current_local_pos.point.x, (float) -current_local_pos.point.y,
+                                    (float) -current_local_pos.point.z,
+                                    (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
+                ROS_INFO("MISSION FINISHED");
+                doing_mission = false;
+            } else { ROS_ERROR("UNKOWN ERROR"); }
+        }
+    }
 }
 
 bool LocalController::set_local_position() {
@@ -179,12 +195,15 @@ bool LocalController::local_position_ctrl(float xCmd, float yCmd, float zCmd, fl
         ROS_INFO("(%f, %f, %f) m @ %f deg target complete",
                  current_local_pos.point.x, current_local_pos.point.y, rpa_height,
                  -RAD2DEG(current_atti_euler.Yaw()));
+        ROS_INFO("Lat: %f, Lon: %f, Height: %f m @ %f deg target complete",
+                 current_gps.latitude, current_gps.longitude, rpa_height,
+                 -RAD2DEG(current_atti_euler.Yaw()));
         LocalController::obtain_control(false);
         return control_task_point.response.result;
     } else { return control_task_point.response.result; }
 }
 
-void
+bool
 LocalController::local_position_ctrl_mission() {
     dji_osdk_ros::FlightTaskControl control_task_mission;
     control_task_mission.request.task = dji_osdk_ros::FlightTaskControl::Request::TASK_POSITION_AND_YAW_CONTROL;
@@ -200,40 +219,15 @@ LocalController::local_position_ctrl_mission() {
     if (control_task_mission.response.result) {
         ROS_INFO("WP %i - %f m @ %f deg target complete", wp_n + 1, rpa_height,
                  -RAD2DEG(current_atti_euler.Yaw()));
-
-        if (wp_n < (int) waypoint_list.size()) {
-            if (use_gimbal) {
-                ROS_INFO("TAKING PHOTO");
-                LocalController::acquire_photo(use_stereo, use_gimbal);
-                //ros::Duration(4).sleep();
-            }
-            wp_n++;
-        } else {
-            ROS_WARN("BACK TO INITIAL POSITION");
-            if (local_position_ctrl((float) -current_local_pos.point.x, (float) -current_local_pos.point.y,
-                                    (float) -current_local_pos.point.z,
-                                    (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
-                ROS_INFO("MISSION FINISHED");
-                doing_mission = false;
-            } else { ROS_ERROR("UNKOWN ERROR"); }
-        }
     }
+    return control_task_mission.response.result;
 }
 
-bool LocalController::acquire_photo(bool stereo, bool gimbal) {
+bool LocalController::gimbal_photo() {
     dji_osdk_ros::CameraStartShootSinglePhoto cameraAction;
     stereo_vant::PointGray stereoAction;
-	ROS_INFO("Got on function");
-    if (stereo) {
-        stereoAction.request.reset_counter = false;
-        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
-        stereoAction.request.file_name = "stereo_vant";
-        sv3d_client.call(stereoAction);
-        if (stereoAction.response.result) {
-            ROS_INFO("Stereo image %i - %hhu", camera_count, stereoAction.response.result);
-            camera_count++;
-        }
-    }
+    ROS_INFO("Got on function");
+
     if (use_gimbal) {
         cameraAction.request.payload_index = 0;
         camera_action_client.call(cameraAction);
@@ -241,7 +235,25 @@ bool LocalController::acquire_photo(bool stereo, bool gimbal) {
             ROS_INFO("Picture %i - %hhu", camera_count, cameraAction.response.result);
             camera_count++;
             return true;
-        }
+        } else {return false;}
+    } else { return false; }
+
+}
+
+bool LocalController::stereo_photo() {
+    stereo_vant::PointGray stereoAction;
+    ROS_INFO("Got on function");
+
+    if (use_stereo) {
+        stereoAction.request.reset_counter = false;
+        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+        stereoAction.request.file_name = "stereo_vant";
+        sv3d_client.call(stereoAction);
+        if (stereoAction.response.result) {
+            ROS_INFO("Stereo image %i - %hhu", camera_count, stereoAction.response.result);
+            camera_count++;
+            return true;
+        } else {return false;}
     } else { return false; }
 
 }

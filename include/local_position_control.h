@@ -47,7 +47,7 @@ class LocalController {
 private:
     ros::NodeHandle nh_;
     /// Filter to acquire same time GPS and RTK
-    ros::Subscriber gps_sub, rtk_sub, attitude_sub, local_pos_sub, height_sub, rtk_status;
+    ros::Subscriber gps_sub, attitude_sub, local_pos_sub, height_sub, rtk_status;
 
     /// XYZ service
     ros::ServiceServer local_position_service;
@@ -66,7 +66,6 @@ private:
 
     /// Messages from GPS, RTK and Attitude
     sensor_msgs::NavSatFix current_gps;
-    sensor_msgs::NavSatFix current_rtk;
     geometry_msgs::PointStamped current_local_pos;
     geometry_msgs::QuaternionStamped current_atti;
     ignition::math::Quaterniond current_atti_euler;
@@ -101,8 +100,6 @@ public:
 
     void gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
 
-    void rtk_callback(const sensor_msgs::NavSatFix::ConstPtr &msg);
-
     void attitude_callback(const geometry_msgs::QuaternionStamped::ConstPtr &msg);
 
     void height_callback(const std_msgs::Float32::ConstPtr &msg);
@@ -117,11 +114,12 @@ public:
 
     void set_gimbal_angles(float roll, float pitch, float yaw);
 
-    bool acquire_photo(bool stereo, bool gimbal);
+    bool gimbal_photo();
+    bool stereo_photo();
 
     bool local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh, float yaw_thresh);
 
-    void local_position_ctrl_mission();
+    bool local_position_ctrl_mission();
 
     bool generate_WP(int csv_type);
 };
