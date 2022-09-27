@@ -17,7 +17,7 @@
         <param name="riser_distance"    type="int"      value="8"/>     <!--METERS-->
         <param name="riser_diameter"    type="int"      value="150"/>   <!--MILLIMETER-->
         <param name="horizontal_points" type="int"      value="7"/>     <!--Nº of horizontal stops-->
-        <param name="vertical_points"   type="int"      value="7"/>     <!--Nº of vertical stops at each horizontal point-->
+        <param name="vertical_points"   type="int"      value="3"/>     <!--Nº of vertical stops at each horizontal point-->
         <param name="delta_H"           type="int"      value="15"/>    <!--DEGREES-->
         <param name="delta_V"           type="int"      value="-300"/>   <!--MILLIMETERS-->
     </node>

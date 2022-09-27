@@ -84,8 +84,7 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
     return res.result;
 }
 
-bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req,
-                                               riser_inspection::StartMission::Response &res) {
+bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req, riser_inspection::StartMission::Response &res) {
 
     doing_mission = true;
     use_gimbal = req.use_gimbal;
@@ -136,6 +135,7 @@ void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
         if (wp_n < waypoint_list.size()) {
             if (local_position_ctrl_mission()) {
                 if (use_gimbal) {
+                    LocalController::set_gimbal_angles(0, 0, 0);
                     ROS_INFO("TAKING PHOTO");
                     LocalController::gimbal_photo();
                     //ros::Duration(4).sleep();
@@ -148,7 +148,7 @@ void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
             }
         } else {
             ROS_WARN("BACK TO INITIAL POSITION");
-            if (local_position_ctrl((float) -current_local_pos.point.x, (float) -current_local_pos.point.y,
+            if (local_position_ctrl((float) -current_local_pos.point.y, (float) -current_local_pos.point.x,
                                     (float) -current_local_pos.point.z,
                                     (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
                 ROS_INFO("MISSION FINISHED");
