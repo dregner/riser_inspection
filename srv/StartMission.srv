@@ -1,5 +1,6 @@
 #request
 bool use_gimbal
+bool video
 bool use_stereo
 ---
 #response

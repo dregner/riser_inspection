@@ -19,10 +19,6 @@
 #include <std_msgs/Float32.h>
 #include <tf/tf.h>
 
-// Opencv includes
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 // Services
 #include <ros/service_client.h>
 #include <std_srvs/SetBool.h>
@@ -36,10 +32,10 @@
 #include <dji_osdk_ros/ObtainControlAuthority.h>
 #include <dji_osdk_ros/SetLocalPosRef.h>
 #include <dji_osdk_ros/CameraStartShootSinglePhoto.h>
+#include <dji_osdk_ros/CameraRecordVideoAction.h>
 #include <dji_osdk_ros/common_type.h>
 #include <dji_osdk_ros/GimbalAction.h>
-#include<dji_osdk_ros/SetJoystickMode.h>
-#include<dji_osdk_ros/JoystickAction.h>
+
 
 #include <path_generator.hh>
 
@@ -58,9 +54,9 @@ private:
 
     /// DJI Services
     ros::ServiceClient obtain_crl_authority_client;
-    ros::ServiceClient flight_task_control_service;
     ros::ServiceClient task_control_client;
-    ros::ServiceClient camera_action_client;
+    ros::ServiceClient camera_photo_client;
+    ros::ServiceClient camera_record_video_client;
     ros::ServiceClient set_local_ref_client;
     ros::ServiceClient gimbal_control_client;
 
@@ -77,11 +73,14 @@ private:
     /// Internal references
     bool doing_mission = false;
     int wp_n = 1;
-    double yaw_error, pos_error;
+    double yaw_error=1, pos_error=0.1;
     bool use_gimbal = false;
+    bool camera_gimbal = false;
+    bool video_gimbal = false;
     bool use_stereo = false;
-    int stereo_voo = 0;
     int camera_count = 1;
+    int stereo_count = 1;
+    double init_heading = 0;
 
     PathGenerate pathGenerator;
     std::vector<std::vector<float>> waypoint_list;
@@ -114,7 +113,7 @@ public:
 
     void set_gimbal_angles(float roll, float pitch, float yaw);
 
-    bool gimbal_photo();
+    bool gimbal_camera(bool record_video);
     bool stereo_photo();
 
     bool local_position_ctrl(float xCmd, float yCmd, float zCmd, float yawCmd, float pos_thresh, float yaw_thresh);

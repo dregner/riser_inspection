@@ -30,23 +30,25 @@ void LocalController::subscribing(ros::NodeHandle &nh) {
 
 
     //! Service topics
-    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>("/obtain_release_control_authority");
+    obtain_crl_authority_client = nh.serviceClient<dji_osdk_ros::ObtainControlAuthority>(
+            "/obtain_release_control_authority");
     set_local_ref_client = nh.serviceClient<dji_osdk_ros::SetLocalPosRef>("/set_local_pos_reference");
     task_control_client = nh.serviceClient<dji_osdk_ros::FlightTaskControl>("/flight_task_control");
     gimbal_control_client = nh.serviceClient<dji_osdk_ros::GimbalAction>("/gimbal_task_control");
 
     //! Camera services
-    camera_action_client = nh.serviceClient<dji_osdk_ros::CameraStartShootSinglePhoto>("camera_start_shoot_single_photo");
+    camera_photo_client = nh.serviceClient<dji_osdk_ros::CameraStartShootSinglePhoto>(
+            "camera_start_shoot_single_photo");
+    camera_record_video_client = nh.serviceClient<dji_osdk_ros::CameraRecordVideoAction>("camera_record_video_action");
     sv3d_client = nh.serviceClient<stereo_vant::PointGray>("/stereo_point_grey/take_picture");
-    ROS_INFO("Subscribed Complet");
 
-    local_position_service = nh.advertiseService("/local_position/set_position",
+    local_position_service = nh.advertiseService("/riser_inspection/set_position",
                                                  &LocalController::local_pos_service_cb, this);
 
-    start_mission_service = nh.advertiseService("/local_position/start_mission",
+    start_mission_service = nh.advertiseService("/riser_inspection/start_mission",
                                                 &LocalController::start_mission_service_cb, this);
 
-
+    ROS_INFO("Subscribed Complet");
 }
 
 bool LocalController::obtain_control(bool ask) {
@@ -84,22 +86,29 @@ bool LocalController::local_pos_service_cb(riser_inspection::LocalPosition::Requ
     return res.result;
 }
 
-bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req, riser_inspection::StartMission::Response &res) {
+bool LocalController::start_mission_service_cb(riser_inspection::StartMission::Request &req,
+                                               riser_inspection::StartMission::Response &res) {
 
     doing_mission = true;
-    use_gimbal = req.use_gimbal;
+    if (req.use_gimbal) {
+        use_gimbal = true;
+        camera_gimbal = !req.video;
+        video_gimbal = req.video;
+    }
     use_stereo = req.use_stereo;
+    camera_count = 1;
+    init_heading = -RAD2DEG(current_atti_euler.Yaw());
     if (LocalController::set_local_position()) {
         if (use_stereo) {
             stereo_vant::PointGray stereoAction;
-            stereo_voo++;
+            stereo_count++;
             stereoAction.request.reset_counter = true;
-            stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+            stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_count);
             stereoAction.request.file_name = "sv3d";
             sv3d_client.call(stereoAction);
         }
         if (use_gimbal) {
-            ROS_INFO("SETTING GIMBAL");
+            ROS_INFO("Set Gimbal to follow aircraft heading");
             LocalController::set_gimbal_angles(0, 0, 0);
         }
         generate_WP(2);
@@ -121,6 +130,8 @@ void LocalController::attitude_callback(const geometry_msgs::QuaternionStamped::
     tf::Matrix3x3 ROT = {0, -1, 0, -1, 0, 0, 0, 0, -1};
     atti_matrix *= ROT;
     atti_matrix.getRotation(q_atti_matrix);
+    //! current_atti_euler after rotations returns [roll=pitch, pitch=roll, yaw = -yaw]
+    //TODO: rotation matrix's to return properly yaw
     current_atti_euler.Set(q_atti_matrix.getW(), q_atti_matrix.getX(), q_atti_matrix.getY(), q_atti_matrix.getZ());
 
 }
@@ -132,13 +143,12 @@ void LocalController::local_position_callback(const geometry_msgs::PointStamped:
 void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     current_gps = *msg;
     if (doing_mission) {
-        if (wp_n < waypoint_list.size()) {
+        if (wp_n < (int) waypoint_list.size()) {
             if (local_position_ctrl_mission()) {
                 if (use_gimbal) {
                     LocalController::set_gimbal_angles(0, 0, 0);
-                    ROS_INFO("TAKING PHOTO");
-                    LocalController::gimbal_photo();
-                    //ros::Duration(4).sleep();
+                    if (camera_gimbal) { LocalController::gimbal_camera(false); }
+                    if( video_gimbal && wp_n == 0){ LocalController::gimbal_camera(true); }
                 }
                 if (use_stereo) {
                     ROS_INFO("SV3D IMG");
@@ -148,9 +158,10 @@ void LocalController::gps_callback(const sensor_msgs::NavSatFix::ConstPtr &msg) 
             }
         } else {
             ROS_WARN("BACK TO INITIAL POSITION");
+            if( video_gimbal){ LocalController::gimbal_camera(false); }
             if (local_position_ctrl((float) -current_local_pos.point.y, (float) -current_local_pos.point.x,
                                     (float) -current_local_pos.point.z,
-                                    (float) -RAD2DEG(current_atti_euler.Yaw()), pos_error, yaw_error)) {
+                                    (float) init_heading, (float) pos_error, (float) yaw_error)) {
                 ROS_INFO("MISSION FINISHED");
                 doing_mission = false;
             } else { ROS_ERROR("UNKOWN ERROR"); }
@@ -211,32 +222,49 @@ LocalController::local_position_ctrl_mission() {
     control_task_mission.request.joystickCommand.y = waypoint_list[wp_n][2];
     control_task_mission.request.joystickCommand.z = waypoint_list[wp_n][3];
     control_task_mission.request.joystickCommand.yaw = waypoint_list[wp_n][4];
-    control_task_mission.request.posThresholdInM = pos_error;
-    control_task_mission.request.yawThresholdInDeg = yaw_error;
+    control_task_mission.request.posThresholdInM = (float) pos_error;
+    control_task_mission.request.yawThresholdInDeg = (float) yaw_error;
 
     task_control_client.call(control_task_mission);
 
     if (control_task_mission.response.result) {
-        ROS_INFO("WP %i - %f m @ %f deg target complete", wp_n + 1, rpa_height,
+        ROS_INFO("WP %i @ %f deg target complete", wp_n + 1, rpa_height,
+                 -RAD2DEG(current_atti_euler.Yaw()));
+        ROS_INFO("Lat: %f, Lon: %f, Height: %f m @ %f deg target complete",
+                 current_gps.latitude, current_gps.longitude, rpa_height,
                  -RAD2DEG(current_atti_euler.Yaw()));
     }
     return control_task_mission.response.result;
 }
 
-bool LocalController::gimbal_photo() {
-    dji_osdk_ros::CameraStartShootSinglePhoto cameraAction;
-    stereo_vant::PointGray stereoAction;
-    ROS_INFO("Got on function");
+bool LocalController::gimbal_camera(bool record_video) {
 
-    if (use_gimbal) {
+
+    if (camera_gimbal) {
+        dji_osdk_ros::CameraStartShootSinglePhoto cameraAction;
         cameraAction.request.payload_index = 0;
-        camera_action_client.call(cameraAction);
+        camera_photo_client.call(cameraAction);
         if (cameraAction.response.result) {
-            ROS_INFO("Picture %i - %hhu", camera_count, cameraAction.response.result);
+            ROS_INFO("Picture %i", camera_count);
             camera_count++;
-            return true;
-        } else {return false;}
-    } else { return false; }
+            return cameraAction.response.result;
+        } else { return cameraAction.response.result; }
+    }
+
+    if (video_gimbal) {
+        dji_osdk_ros::CameraRecordVideoAction cameraRecordVideoAction;
+        cameraRecordVideoAction.request.start_stop = record_video;
+        cameraRecordVideoAction.request.payload_index = static_cast<uint8_t>(dji_osdk_ros::PayloadIndex::PAYLOAD_INDEX_0);
+        camera_record_video_client.call(cameraRecordVideoAction);
+        if (cameraRecordVideoAction.response.result) {
+            ROS_INFO("Video %s", record_video ? "Record" : "Stop");
+            return cameraRecordVideoAction.response.result;
+        } else { return cameraRecordVideoAction.response.result; }
+    }
+
+    if (!video_gimbal && !camera_gimbal) {
+        return false;
+    }
 
 }
 
@@ -246,14 +274,14 @@ bool LocalController::stereo_photo() {
 
     if (use_stereo) {
         stereoAction.request.reset_counter = false;
-        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_voo);
+        stereoAction.request.file_path = pathGenerator.getFileName() + "/stereo_voo" + std::to_string(stereo_count);
         stereoAction.request.file_name = "stereo_vant";
         sv3d_client.call(stereoAction);
         if (stereoAction.response.result) {
-            ROS_INFO("Stereo image %i - %hhu", camera_count, stereoAction.response.result);
+            ROS_INFO("Stereo image %i", camera_count);
             camera_count++;
-            return true;
-        } else {return false;}
+            return stereoAction.response.result;
+        } else { return stereoAction.response.result; }
     } else { return false; }
 
 }
@@ -282,28 +310,18 @@ bool LocalController::generate_WP(int csv_type) {
                                      (float) delta_v);
     /** Define start positions to create waypoints */
     pathGenerator.setInitCoord_XY(current_local_pos.point.x, current_local_pos.point.y, rpa_height,
-                                  (int) -RAD2DEG(current_atti_euler.Yaw()));
+                                  (int) init_heading);
     try {
         pathGenerator.createInspectionPoints(csv_type); // type 4 refers to XYZ YAW waypoints
         ROS_WARN("Waypoints created at %s/%s", pathGenerator.getFolderName().c_str(),
                  pathGenerator.getFileName().c_str());
-        std::vector<std::vector<std::string>> csv_file = pathGenerator.read_csv(
+        std::vector<std::vector<std::string>> csv_file = PathGenerate::read_csv(
                 pathGenerator.getFolderName() + "/" + pathGenerator.getFileName(), ",");
-        switch (csv_type) {
-            case 1:
-                for (int k = 1; k < (int) csv_file.size(); k++) {
-                    waypoint_list.push_back(
-                            {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
-                             std::stof(csv_file[k][3]), std::stof(csv_file[k][4])});
-                }
-                break;
-            case 2:
-                for (int k = 1; k < (int) csv_file.size(); k++) {
-                    waypoint_list.push_back(
-                            {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
-                             std::stof(csv_file[k][3]), std::stof(csv_file[k][4])});
-                }
-                break;
+
+        for (int k = 1; k < (int) csv_file.size(); k++) {
+            waypoint_list.push_back(
+                    {(float) std::stoi(csv_file[k][0]), std::stof(csv_file[k][1]), std::stof(csv_file[k][2]),
+                     std::stof(csv_file[k][3]), std::stof(csv_file[k][4])});
         }
         return true;
     } catch (ros::Exception &e) {

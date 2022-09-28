@@ -54,7 +54,7 @@ set(CMAKE_CXX_STANDARD 14)
 ################################################
 
 
-add_service_files(FILES wpFolders.srv StartMission.srv LocalPosition.srv LocalVelocity.srv)
+add_service_files(FILES StartMission.srv LocalPosition.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
