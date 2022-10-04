@@ -54,7 +54,7 @@ set(CMAKE_CXX_STANDARD 14)
 ################################################
 
 
-add_service_files(FILES StartMission.srv LocalPosition.srv)
+add_service_files(FILES StartMission.srv LocalPosition.srv CameraSetting.srv)
 
 generate_messages(DEPENDENCIES std_msgs sensor_msgs nav_msgs actionlib_msgs)
 
@@ -95,6 +95,9 @@ target_link_libraries(change_txt ${catkin_LIBRARIES})
 
 add_executable(local_controller_node src/ros/local_controller_node.cpp src/ros/local_position_control.cpp src/path/path_generator.cpp)
 target_link_libraries(local_controller_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(camera_setting_node src/ros/dji_camera_setting_node.cpp src/ros/dji_camera_setting.cpp)
+target_link_libraries(camera_setting_node ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ${DJIOSDK_LIBRARIES})
 
 add_executable(gps_atti src/ros/sensors/read_gps_atti.cpp)
 target_link_libraries(gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
