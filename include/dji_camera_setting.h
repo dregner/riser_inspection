@@ -14,7 +14,7 @@
 #include <dji_osdk_ros/CameraAperture.h>
 #include <dji_osdk_ros/CameraISO.h>
 #include <dji_osdk_ros/CameraFocusPoint.h>
-
+#include <riser_inspection/CameraSetting.h>
 
 
 class DJIcameraSetting {
@@ -34,7 +34,7 @@ public:
 
     void subscriber(ros::NodeHandle nh);
 
-    bool camera_setting_service_server();
+    bool camera_setting_service_server(riser_inspection::CameraSetting::Request &req, riser_inspection::CameraSetting::Response &res);
 };
 
 

@@ -262,10 +262,7 @@ bool LocalController::gimbal_camera(bool record_video) {
         } else { return cameraRecordVideoAction.response.result; }
     }
 
-    if (!video_gimbal && !camera_gimbal) {
-        return false;
-    }
-
+    return false;
 }
 
 bool LocalController::stereo_photo() {
