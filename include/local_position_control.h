@@ -24,7 +24,6 @@
 #include <std_srvs/SetBool.h>
 #include <iostream>
 #include <riser_inspection/LocalPosition.h>
-#include <riser_inspection/LocalVelocity.h>
 #include <riser_inspection/StartMission.h>
 #include <stereo_vant/PointGray.h>
 // DJI SDK includes
