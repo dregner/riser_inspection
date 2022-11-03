@@ -19,16 +19,16 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 // initialize values for StereoSGBM parameters
-int numDisparities = 16;
-int blockSize = 13;
+int numDisparities = 2;
+int blockSize = 9;
 int preFilterType = 1;
-int preFilterSize = 7;
-int preFilterCap = 57;
+int preFilterSize = 25;
+int preFilterCap = 59;
 int minDisparity = 0;
 int textureThreshold = 0;
-int uniquenessRatio = 50;
-int speckleRange = 0;
-int speckleWindowSize = 0;
+int uniquenessRatio = 31;
+int speckleRange = 30;
+int speckleWindowSize = 16;
 int disp12MaxDiff = -1;
 int dispType = CV_16S;
 // Creating an object of StereoSGBM algorithm
@@ -64,8 +64,8 @@ public:
         cv::namedWindow(OPENCV_WINDOW_S);
         cv::namedWindow(OPENCV_WINDOW_D);
 
-//        create_trackbars();
-        initStereoParam();
+        create_trackbars();
+//        initStereoParam();
 
     }
 
@@ -94,17 +94,17 @@ public:
     void initStereoParam() {
         cv::resizeWindow(OPENCV_WINDOW_D, 880, 680);
 
-        stereo->setNumDisparities(32);
-        stereo->setBlockSize(13);
-        stereo->setPreFilterType(1);
-        stereo->setPreFilterSize(13);
-        stereo->setPreFilterCap(36);
-        stereo->setTextureThreshold(0);
-        stereo->setUniquenessRatio(61);
-        stereo->setSpeckleRange(0);
-        stereo->setSpeckleWindowSize(0);
-        stereo->setDisp12MaxDiff(0);
-        stereo->setMinDisparity(0);
+        stereo->setNumDisparities(numDisparities*16);
+        stereo->setBlockSize(blockSize*2+5);
+        stereo->setPreFilterType(preFilterType);
+        stereo->setPreFilterSize(preFilterSize*2+5);
+        stereo->setPreFilterCap(preFilterCap);
+        stereo->setTextureThreshold(textureThreshold);
+        stereo->setUniquenessRatio(uniquenessRatio);
+        stereo->setSpeckleRange(speckleRange);
+        stereo->setSpeckleWindowSize(speckleWindowSize);
+        stereo->setDisp12MaxDiff(disp12MaxDiff);
+        stereo->setMinDisparity(minDisparity);
     }
 
     void initSubscriber(ros::NodeHandle &nh) {
@@ -184,19 +184,26 @@ public:
 
 //        // Displaying the disparity map
 //        cv::imshow(OPENCV_WINDOW_D, stereoBM_16_disp);
-        view_stereo_images(img_rect_L, img_rect_R, OPENCV_WINDOW_S);
-        view_stereo_images(stereoBM_disp, stereoBM_16_disp, OPENCV_WINDOW_D);
+        view_stereo_images(img_rect_L, img_rect_R, OPENCV_WINDOW_S, true);
+        view_stereo_images(stereoBM_disp, stereoBM_16_disp, OPENCV_WINDOW_D, false);
 
         cv::waitKey(3);
     }
 
-    void view_stereo_images(cv::Mat image1, cv::Mat image2, std::string win_name) {
+    void view_stereo_images(cv::Mat image1, cv::Mat image2, std::string win_name, bool rect_image) {
         cv::Mat image_to_show;
         cv::hconcat(image1, image2, image_to_show);
 
         cv::resize(image_to_show, image_to_show,
                    cv::Size(image1.cols * 2, image1.rows),
                    (0, 0), (0, 0), cv::INTER_LINEAR);
+        if(rect_image){
+            for (int j = 0; j < image_to_show.rows; j += 24) {
+                line(image_to_show, cv::Point(0, j),
+                     cv::Point(image_to_show.cols, j),
+                     cv::Scalar(255, 0, 0, 255), 1, 8);
+            }
+        }
         cv::imshow(win_name, image_to_show);
     }
     // Defining callback functions for the trackbars to update parameter values
