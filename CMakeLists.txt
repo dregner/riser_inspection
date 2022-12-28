@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS cv_bridge
         roscpp rospy sensor_msgs
-        message_generation message_filters stereo_vant dji_osdk_ros)
+        message_generation message_filters stereo_vant dji_osdk_ros darknet_ros_msgs)
 find_package(ignition-math4)
 find_package(DJIOSDK REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
@@ -122,6 +122,12 @@ target_link_libraries(save_disp_zed ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ign
 
 add_executable(show_disp src/ros/sensors/show_disp.cpp)
 target_link_libraries(show_disp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
+
+add_executable(darknet_disparity_node src/ros/darknet_disparity_node.cpp src/ros/darknet_disparity.cpp)
+target_link_libraries(darknet_disparity_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+add_executable(m210_stereo_depth src/stereo/m210_stereo_vga.cpp src/stereo/stereo_utility/camera_param.cpp src/stereo/stereo_utility/config.cpp src/stereo/stereo_utility/stereo_frame.cpp)
+target_link_libraries(m210_stereo_depth ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
 
 install(TARGETS local_controller_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

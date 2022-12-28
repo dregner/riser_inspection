@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+    <!-- Use YOLOv3 -->
+    <arg name="network_param_file"         default="$(find darknet_ros)/config/yolov3-tiny-simulacro.yaml"/>
+    <arg name="image" default="camera/rgb/image_raw" />
+
+    <!-- Include main launch file -->
+    <include file="$(find darknet_ros)/launch/darknet_ros.launch">
+        <arg name="network_param_file"    value="$(arg network_param_file)"/>
+        <arg name="image" value="$(arg image)" />
+    </include>
+
+    <!-- M210 stereo dispartyi node -->
+    <node pkg="riser_inspection" type="m210_stereo_depth" name="m210_stere_vga" output="screen">
+    </node>
+
+    <!-- Darknet simulacro detection and distance -->
+    <node pkg="riser_inspection" type="darknet_disparity_node" name="darknet_distance" output="screen">
+        <param name="darknet_topic"     type="string"   value="/darknet_ros/bounding_boxes"/>
+        <param name="darknet_objet"     type="string"   value="/darknet_ros/found_object"/>
+        <param name="disparity_topic"   type="string"   value="/stereo_depth_perception/disparity_front_left_image"/>
+        <param name="object_track"      type="string"   value="simulacro"/>
+    </node>
+
+</launch>
