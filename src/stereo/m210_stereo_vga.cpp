@@ -82,7 +82,7 @@ void displayStereoFilteredDisparityCallback(const sensor_msgs::ImageConstPtr &im
     //! Filter disparity map
     timer filter_start = std::chrono::high_resolution_clock::now();
     stereo_frame_ptr->filterDisparityMap();
-    is_disp_filterd = false;
+    is_disp_filterd = true;
     timer filter_end = std::chrono::high_resolution_clock::now();
 
 //    visualizeRectImgHelper(stereo_frame_ptr);
