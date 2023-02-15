@@ -106,7 +106,7 @@ void M210_STEREO::StereoFrame::computeDisparityMap() {
     //! CPU implementation of stereoBM outputs short int, i.e. CV_16S
     block_matcher_->compute(rectified_img_left_, rectified_img_right_, raw_disparity_map_);
 
-    raw_disparity_map_.convertTo(disparity_map_8u_, CV_8UC1, 0.725); //! 0.725
+    raw_disparity_map_.convertTo(disparity_map_8u_, CV_8UC1, 0.3625); //! 0.725
 
 
 }
