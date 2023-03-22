@@ -32,8 +32,10 @@ private:
 
     /// file name to store WP
     std::ofstream saved_wp_;
+    std::ofstream saved_wp_gps_;
     std::string file_path_ = "/home/vant3d/Documents";
     std::string file_name_ = "pathGenerator_WP.csv";
+    std::string file_name_gps_ = "pathGenerator_WP_GPS.csv";
     /// Initialize parameters
     int vertical_pts_ = 4; // number of horizontal path
     float delta_altitude_ = 0.3; // 80% image overlap (CAMERA PARAMETER) TODO: Find a way to bring it from image.

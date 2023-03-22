@@ -306,6 +306,7 @@ bool LocalController::generate_WP(int csv_type) {
     pathGenerator.setInspectionParam(riser_distance, (float) riser_diameter, h_points, v_points, delta_h,
                                      (float) delta_v);
     /** Define start positions to create waypoints */
+    pathGenerator.setInitCoord(current_gps.latitude, current_gps.longitude, rpa_height, (int) init_heading);
     pathGenerator.setInitCoord_XY(current_local_pos.point.x, current_local_pos.point.y, rpa_height,
                                   (int) init_heading);
     try {

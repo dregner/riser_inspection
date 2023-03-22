@@ -140,12 +140,12 @@ void PathGenerate::save_delta_cartesian() {
 
 void PathGenerate::save_gnss() {
     if (firstTime) {
-        saved_wp_ << "WP,LAT,LON,ALT,Yaw" << std::endl;
+        saved_wp_gps_ << "WP,LAT,LON,ALT,Yaw" << std::endl;
         firstTime = false;
     }
     if (saved_wp_.is_open()) {
         for (int k = 0; k < (int) gnss_points_.size(); k++) {
-            saved_wp_ << k + 1 << ","
+            saved_wp_gps_ << k + 1 << ","
                       << std::setprecision(10) << gnss_points_[k][0] << ","
                       << std::setprecision(10) << gnss_points_[k][1] << ","
                       << std::setprecision(4) << gnss_points_[k][2] << ","
@@ -182,6 +182,7 @@ void PathGenerate::createInspectionPoints(int csv_type) {
             break;
         case 2:
             PathGenerate::save_delta_cartesian();
+            PathGenerate::save_gnss();
             break;
         case 3:
             PathGenerate::save_gnss();
@@ -195,10 +196,12 @@ void PathGenerate::createInspectionPoints(int csv_type) {
 void PathGenerate::openFile() {
     std::string slash = "/";
     saved_wp_.open(file_path_ + slash + file_name_);
+    saved_wp_gps_.open(file_path_+slash+file_name_gps_);
 }
 
 void PathGenerate::closeFile() {
     saved_wp_.close();
+    saved_wp_gps_.close();
 }
 
 bool PathGenerate::exists(const std::string &name) {
