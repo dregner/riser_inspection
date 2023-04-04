@@ -126,8 +126,11 @@ target_link_libraries(show_disp ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${dji_sd
 add_executable(darknet_disparity_node src/ros/darknet_disparity_node.cpp src/ros/darknet_disparity.cpp)
 target_link_libraries(darknet_disparity_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
-add_executable(m210_stereo_depth src/stereo/m210_stereo_vga.cpp src/stereo/stereo_utility/camera_param.cpp src/stereo/stereo_utility/config.cpp src/stereo/stereo_utility/stereo_frame.cpp)
-target_link_libraries(m210_stereo_depth ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
+add_executable(m210_stereo_rect_depth src/stereo/m210_stereo_vga.cpp src/stereo/stereo_utility/camera_param.cpp src/stereo/stereo_utility/config.cpp src/stereo/stereo_utility/stereo_frame.cpp)
+target_link_libraries(m210_stereo_rect_depth ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(vga_rosservice src/ros/stereo_vga_subscription.cpp)
+target_link_libraries(vga_rosservice ${catkin_LIBRARIES} ${DJIOSDK_LIBRARIES})
 
 install(TARGETS local_controller_node
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

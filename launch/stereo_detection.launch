@@ -8,8 +8,12 @@
     <arg name="network_param_file"         default="$(find darknet_ros)/config/yolov3-tiny-simulacro.yaml"/>
     <arg name="image" default="camera/rgb/image_raw" />
 
+    <!-- Subscription of stereo_vga_front_cameras -->
+    <node pkg="riser_inspection" type="vga_rosservice" name="m210_stereo_vga_subscription" output="screen">
+    </node>
+
     <!-- M210 stereo dispartyi node -->
-    <node pkg="riser_inspection" type="m210_stereo_depth" name="m210_stere_vga" output="screen">
+    <node pkg="riser_inspection" type="m210_stereo_rect_depth" name="m210_stere_vga_rect_depth" output="screen">
     </node>
     <!-- Include main launch file -->
     <include file="$(find darknet_ros)/launch/darknet_ros.launch">
