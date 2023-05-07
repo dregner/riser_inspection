@@ -3,8 +3,8 @@
 <launch>
 
     <!-- Subscription of stereo_vga_front_cameras -->
-    <node pkg="riser_inspection" type="vga_rosservice" name="m210_stereo_vga_subscription" output="screen">
-    </node>
+<!--     <node pkg="riser_inspection" type="vga_rosservice" name="m210_stereo_vga_subscription" output="screen"> -->
+<!--     </node> -->
 
     <!-- M210 stereo dispartyi node -->
     <node pkg="riser_inspection" type="m210_stereo_rect_depth" name="m210_stere_vga_rect_depth" output="screen">
@@ -12,14 +12,14 @@
     <!-- Include main launch file -->
     <include file="$(find darknet_ros)/launch/darknet_ros.launch">
         <arg name="network_param_file"    value="$(find darknet_ros)/config/yolov3-tiny-simulacro.yaml"/>
-        <arg name="image" value="$(arg image)" />
+        <arg name="image" value="/stereo_depth_perception/rectified_vga_front_left_image" />
     </include>
 
     <!-- Darknet simulacro detection and distance -->
     <node pkg="riser_inspection" type="darknet_disparity_node" name="darknet_distance" output="screen">
         <param name="darknet_topic"     type="string"   value="/darknet_ros/bounding_boxes"/>
         <param name="darknet_objet"     type="string"   value="/darknet_ros/found_object"/>
-        <param name="disparity_topic"   type="string"   value="/stereo_depth_perception/rectified_vga_front_left_image"/>
+        <param name="disparity_topic"   type="string"   value="/stereo_depth_perception/disparity_front_left_image"/>
         <param name="object_track"      type="string"   value="simulacro"/>
     </node>
 

@@ -108,6 +108,9 @@ target_link_libraries(save_gps_atti ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ign
 add_executable(save_positions src/ros/sensors/save_gps_local_atti.cpp)
 target_link_libraries(save_positions ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 
+add_executable(save_battery src/ros/sensors/save_battery.cpp)
+target_link_libraries(save_battery ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES})
+
 add_executable(save_vel src/ros/sensors/save_velocities.cpp)
 target_link_libraries(save_vel ${catkin_LIBRARIES} ${dji_sdk_LIBRARIES} ignition-math4::ignition-math4)
 

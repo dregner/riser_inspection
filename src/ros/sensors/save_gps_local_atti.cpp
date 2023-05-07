@@ -10,6 +10,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <fstream>
+#include <sensor_msgs/BatteryState.h>
 
 std::ofstream sensor_data;
 
@@ -18,7 +19,8 @@ std::ofstream sensor_data;
 
 void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
               const geometry_msgs::QuaternionStamped::ConstPtr &atti_msg,
-              const geometry_msgs::PointStamped::ConstPtr &local_msg) {
+              const geometry_msgs::PointStamped::ConstPtr &local_msg,
+              const sensor_msgs::BatteryState::ConstPtr &bat_msg) {
 
     ignition::math::Quaterniond rpy;
     rpy.Set(atti_msg->quaternion.w, atti_msg->quaternion.x, atti_msg->quaternion.y, atti_msg->quaternion.z);
@@ -27,7 +29,8 @@ void callback(const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
                     << "\t " << std::setprecision(10) << gps_msg->latitude << "\t" << std::setprecision(10)
                     << gps_msg->longitude << "\t" << std::setprecision(10) << gps_msg->altitude
                     << "\t " << std::setprecision(6) << local_msg->point.x << "\t" << std::setprecision(6)
-                    << local_msg->point.y << "\t " << std::setprecision(6) << local_msg->point.z << "\n";
+                    << local_msg->point.y << "\t " << std::setprecision(6) << local_msg->point.z << "\t"
+                    << bat_msg->percentage << "\t" << bat_msg->voltage << "\t" << bat_msg->current << "\n";
     }
 
 }
@@ -40,13 +43,14 @@ int main(int argc, char **argv) {
     message_filters::Subscriber<sensor_msgs::NavSatFix> gps(nh, "/dji_osdk_ros/gps_position", 1);
     message_filters::Subscriber<geometry_msgs::QuaternionStamped> atti(nh, "/dji_osdk_ros/attitude", 1);
     message_filters::Subscriber<geometry_msgs::PointStamped> local(nh, "/dji_osdk_ros/local_position", 1);
+    message_filters::Subscriber<sensor_msgs::BatteryState> battery(nh, "/dji_osdk_ros/battery_state", 1);
 
     sensor_data.open("position_data.txt");
 
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped, geometry_msgs::PointStamped> MySyncPolicy;
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix, geometry_msgs::QuaternionStamped, geometry_msgs::PointStamped, sensor_msgs::BatteryState> MySyncPolicy;
     // ExactTime takes a queue size as its constructor argument, hence MySyncPolicy(10)
-    message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(100), gps, atti, local);
-    sync.registerCallback(boost::bind(&callback, _1, _2, _3));
+    message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(100), gps, atti, local, battery);
+    sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
 
     while (ros::ok()) {
         ros::spinOnce();
